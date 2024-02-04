@@ -1,0 +1,8 @@
+Data
+Results
+Report
+Development
+.DS_Store
+Code/__pycache__/*
+guyana_metadata_cleaned.csv
+wdl_inline_barcodes_process.wdl
