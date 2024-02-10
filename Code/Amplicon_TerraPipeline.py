@@ -26,17 +26,15 @@ def main():
 	#Parse command line arguments
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--config', help="Path to config.json file.", required =True)
-	parser.add_argument('--overlap_reads', action="store_true", help="Specify whether the data contains paired reads that overlap on their targets. For example, MiSeq paired reads of 250bp for 500bp or shorter targets. The pipeline will perform the contamination detection steps with bbmerge or dada2, depending on the choice made be the user.")
+	parser.add_argument('--overlap_reads', action="store_true", help="Specify whether the data contains paired reads that overlap on their targets. For example, MiSeq paired reads of 250bp for 500bp or shorter targets.")
 	parser.add_argument('--mixed_reads', action="store_true", help="Specify whether the data contains a mix of reads that overlap and do not overlap on their targets. For example, iSeq paired reads of 150bp for targets that are shorter than 300bp long and targets that are longer than 300bp.")
 	parser.add_argument('--terra', action="store_true", help="Specify whether the pipeline is being run in the Terra platform.")
 	parser.add_argument('--meta', action="store_true", help="Specify if metadata file must be created. This flag runs the pipeline from the beginning.")
 	parser.add_argument('--repo', action="store_true", help="Specify if the reports must be created.")
-	parser.add_argument('--bbmerge', action="store_true", help="Specify if preprocess merge with bbmerge is performed.")
-	parser.add_argument('--bbmerge_report', action="store_true", help="Aggregate bbmerge reports and generate a visual summary. This flag will only work if the --merge and --overlap_reads flags are active.")
+	parser.add_argument('--contamination', action="store_true", help="Specify if contamination detection is performed.")
 	parser.add_argument('--adaptor_removal', action="store_true", help="Specify if adaptor removal needed.")
 	parser.add_argument('--primer_removal', action="store_true", help="Specify if primer removal needed.")
 	parser.add_argument('--dada2', action="store_true", help="Specifiy if standard preprocess merge with DADA2 is performed.")
-	parser.add_argument('--dada2_contamination', action="store_true", help="Specifiy if contamination detection is performed with DADA2. Unlike in the standard DADA2 preproprocess, dada2_contamination merges the reads after adaptor removal, not after primer removal. Primer removal will cut the barcodes, making it impossible to perform the matching procedure for contamination detection.")
 	parser.add_argument('--postproc_dada2', action="store_true", help="Specifiy if postProcess of DADA2 results is perfomed.")
 	parser.add_argument('--asv_to_cigar', action="store_true", help="Specifiy if the ASV to CIGAR transformation is perfomed.")
 
@@ -45,9 +43,6 @@ def main():
 	#Check minimum arguments and contracdicting flags
 	if not any([args.mixed_reads, args.overlap_reads]):
 		sys.exit('Pre-process halted: User must declare the mixed_reads or overlap_reads flags.')
-
-	if args.mixed_reads and args.bbmerge and args.bbmerge_report:
-		sys.exit('Merging of non-overlapping reads with bbmerge unsupported. Use the dada2 and dada2_contamination flags instead. Read documentation for limitations of this method.')
 
 	if args.terra:
 		print("Pipeline is running in Terra. Adjusted paths will be used.")
@@ -61,9 +56,6 @@ def main():
 		path_to_flist = config_inputs['path_to_flist']
 		if 'pattern_fw' in config_inputs.keys(): pattern_fw = config_inputs['pattern_fw']
 		if 'pattern_rv' in config_inputs.keys(): pattern_rv = config_inputs['pattern_rv']
-		if 'read_maxlength' in config_inputs.keys(): read_maxlength = config_inputs['read_maxlength']
-		if 'pairread_minlength' in config_inputs.keys(): pairread_minlength = config_inputs['pairread_minlength']
-		if 'merge_minlength' in config_inputs.keys(): merge_minlength = config_inputs['merge_minlength']
 		if 'pr1' in config_inputs.keys(): pr1 = config_inputs['pr1']
 		if 'pr2' in config_inputs.keys(): pr2 = config_inputs['pr2']
 		if 'Class' in config_inputs.keys(): Class = config_inputs['Class']
@@ -126,7 +118,7 @@ def main():
 		with open('Results/Fq_metadata/rawfilelist.tsv', 'r') as raw_files:
 			raw_file_samples = [line.split('\t')[0] for line in raw_files]
 
-		missing_samples = [sample for sample in samples if sample not in raw_file_samples]
+		missing_samples = [sample.strip() for sample in samples if sample not in raw_file_samples]
 
 		with open('Results/missing_files.tsv', 'w') as output_file:
 			output_file.write('\n'.join(missing_samples))
@@ -147,29 +139,57 @@ def main():
 		ad.create_meta(os.path.join(res_dir, "AdaptorRem"), res_dir, "AdaptorRem", "adaptorrem_meta.tsv",
 			pattern_fw="*_val_1.fq.gz", pattern_rv="*_val_2.fq.gz")
 
-	#Merge forward and reverse reads with bbmerge. Only for reads that overlap.
-	if args.bbmerge and args.overlap_reads:
+	#Merge forward and reverse reads with bbmerge. Only for reads that overlap and
+	#Process merge report and generate RStudio plots
+	if args.contamination:
 		ad.flush_dir(res_dir, "Merge")
 		meta = open(os.path.join(res_dir, "AdaptorRem", "adaptorrem_meta.tsv") , 'r')
 		samples = meta.readlines()
 		for sample in samples:
 			slist = sample.split()
-			ad.mergereads(slist[0], slist[1], slist[2], res_dir, "Merge", read_maxlength, pairread_minlength, merge_minlength)
+			ad.mergereads(slist[0], slist[1], slist[2], res_dir, "Merge")
 
-	#Process merge report and generate RStudio plots
-	if args.bbmerge_report and args.overlap_reads:
 		ad.flush_dir(rep_dir, "Merge")
-		with open(os.path.join(rep_dir, "Merge", "bbmergefields.tsv"), 'a') as f:
-			header = ['SampleID', 'Pairs', 'Joined', 'JoinedP', 'Ambiguous', 'AmbiguousP', 'No_Solution', 'No_SolutionP', 
-				'Too_Short', 'Too_ShortP', 'Avg_Insert', 'Standard_Deviation', 'Mode', 'Insert_range_low', 
-				'Insert_range_up', '90th_pc', '75th', '50th_pc', '25th_pc', '10th_pc']	
-			f.write('\t'.join(header) + '\n')
 		meta = open(os.path.join(res_dir, "Merge", "merge_meta.tsv"), 'r')
 		samples = meta.readlines()
 		
 		for sample in samples:
 			slist = sample.split()
 			ad.extract_bbmergefields(slist[0], slist[1], slist[3], path_to_flist, res_dir, rep_dir, "Merge", args.terra)
+
+	#Determine if files must be cleaned from contamination. Note that when running this option, 
+	#the AdaptorRem and the metadata directory will be regenerated with files with no wrong barcodes
+	if args.contamination and args.dada2:
+		print("Making files with no contaminating reads")
+		meta = open(os.path.join(res_dir, "Fq_metadata", "rawfilelist.tsv"), 'r')
+		samples = meta.readlines()
+		ad.flush_dir(res_dir, "Clean_Data_Repo")
+		for sample in samples:
+			slist = sample.split()
+			tsv_name = slist[0]+"_final.tsv"
+			path_to_match_report = os.path.join(rep_dir, "Merge", tsv_name)
+			if os.path.isfile(path_to_match_report):	
+				print(path_to_match_report)
+				path_outfile_r1 = os.path.join(res_dir, "Clean_Data_Repo", slist[0]+'_L001_R1_001.fastq')
+				path_outfile_r2 = os.path.join(res_dir, "Clean_Data_Repo", slist[0]+'_L001_R2_001.fastq')
+				ad.filter_fastq_by_read_names(slist[1], slist[2], path_to_match_report, path_outfile_r1, path_outfile_r2)
+			else:	
+				print("File is empty")
+				print(path_to_match_report)
+
+		ad.flush_dir(res_dir, "Fq_metadata")
+		ad.create_meta(os.path.join(res_dir, "Clean_Data_Repo"), res_dir, "Fq_metadata", "rawfilelist.tsv", pattern_fw, pattern_rv)
+
+		ad.flush_dir(res_dir, "AdaptorRem")
+		meta = open(os.path.join(res_dir, "Fq_metadata", "rawfilelist.tsv"), 'r')
+		samples = meta.readlines()
+		
+		for sample in samples:
+			slist = sample.split()
+			ad.adaptor_rem(slist[0], slist[1], slist[2], res_dir, "AdaptorRem")
+	
+		ad.create_meta(os.path.join(res_dir, "AdaptorRem"), res_dir, "AdaptorRem", "adaptorrem_meta.tsv",
+			pattern_fw="*_val_1.fq.gz", pattern_rv="*_val_2.fq.gz")
 
 	#Remove primers
 	#For a set where all reads have overlap
@@ -369,70 +389,6 @@ def main():
 		print(f"INFO: Converting DADA2 seqtab file {path_to_seqtab} to {path_to_out}")
 		if ac.convert_seqtab(path_to_seqtab, cigars, path_to_out):
 			print("INFO: Completed successfully!")
-
-	#Perform DADA2 merging for contamination detection for overlapping reads
-	if args.dada2_contamination and args.overlap_reads:	
-		ad.flush_dir(res_dir, "DADA2_Contamination")
-		ad.flush_dir(rep_dir, "DADA2_Contamination")
-
-		path_to_meta = os.path.join(res_dir, "AdaptorRem", "adaptorrem_meta.tsv")		
-		ad.run_dada2(path_to_meta, path_to_fq, path_to_flist, Class, maxEE, trimRight, minLen, truncQ, matchIDs, max_consist, omegaA, justConcatenate, maxMismatch, saveRdata, res_dir, "DADA2_Contamination", args.terra)
-
-	#Perform DADA2 merging for contamination detection for mix of overlapping and non-overlapping reads
-	if args.dada2_contamination and args.mixed_reads:
-		ad.flush_dir(res_dir, "PrimerRem_OP")	
-		ad.flush_dir(res_dir, "PrimerRem_NOP")
-		ad.flush_dir(rep_dir, "DADA2_Contamination")
-		meta = open(os.path.join(res_dir, "AdaptorRem", "adaptorrem_meta.tsv"), 'r')
-		samples = meta.readlines()
-
-		#Use the trim functions to separate files, but do not trim the primer and barcode
-		for sample in samples:
-			slist = sample.split()
-			ad.trim_primer(slist[0], slist[1], slist[2], res_dir, "PrimerRem_OP", pr1, pr2, "mixed_op", True)
-
-		#Metafile for un-trimmed op target reads
-		ad.create_meta(os.path.join(res_dir, "PrimerRem_OP"), res_dir, "PrimerRem_OP", "mixed_op_prim_meta.tsv",
-			pattern_fw="*_temp_1.fq.gz", pattern_rv="*_temp_2.fq.gz")
-
-		#Trim primers off Non Overlapping short targets and demux them to different file
-		for sample in samples:
-			slist = sample.split()
-			ad.trim_primer(slist[0], slist[1], slist[2], res_dir, "PrimerRem_NOP", overlap_pr1, overlap_pr2, "mixed_nop", True)
-
-		#Metafile for un-trimmed nop target reads
-		ad.create_meta(os.path.join(res_dir, "PrimerRem_NOP"), res_dir, "PrimerRem_NOP", "mixed_nop_prim_meta.tsv",
-			pattern_fw="*_temp_1.fq.gz", pattern_rv="*_temp_2.fq.gz")
-
-		#Perform DADA2 merging for contamination detection on iseq runs 
-		justConcatenate=1	
-		ad.flush_dir(res_dir, "DADA2_NOP_Contamination")
-		path_to_meta = os.path.join(res_dir, "PrimerRem_NOP", "mixed_nop_prim_meta.tsv")			
-		ad.run_dada2(path_to_meta, path_to_fq, path_to_flist, Class, maxEE, trimRight, minLen, truncQ, matchIDs, max_consist, omegaA, justConcatenate, maxMismatch, saveRdata, res_dir, "DADA2_NOP_Contamination", args.terra)
-
-		seqtab_op = os.path.join(res_dir,'DADA2_NOP_Contamination','seqtab.tsv')
-
-		justConcatenate=0	
-		ad.flush_dir(res_dir, "DADA2_OP_Contamination")
-		path_to_meta = os.path.join(res_dir, "PrimerRem_OP", "mixed_op_prim_meta.tsv")			
-		ad.run_dada2(path_to_meta, path_to_fq, path_to_flist, Class, maxEE, trimRight, minLen, truncQ, matchIDs, max_consist, omegaA, justConcatenate, maxMismatch, saveRdata, res_dir, "DADA2_OP_Contamination", args.terra)
-
-		seqtab_nop = os.path.join(res_dir,'DADA2_OP_Contamination','seqtab.tsv')
-
-		#Merge two ASV tables
-		#ASV modification is impossible due to the presence of barcodes, which cannot be aligned to the reference genome.
-		seqtab = ad.merge_seqtab(seqtab_op, seqtab_nop)
-		seqtab.to_csv(os.path.join(res_dir, 'seqtab_mixed_contamination.tsv'), sep = "\t")
-
-		cmd = ['mkdir', os.path.join(res_dir, 'DADA2_Contamination')] 
-		print(cmd)
-		proccp = subprocess.Popen(cmd)
-		proccp.wait()
-
-		cmd = ['cp', os.path.join(res_dir, 'seqtab_mixed_contamination.tsv'), os.path.join(res_dir, 'DADA2_Contamination/seqtab.tsv')] 
-		print(cmd)
-		proccp = subprocess.Popen(cmd)
-		proccp.wait()
-
+		
 if __name__ == "__main__":
 	main()

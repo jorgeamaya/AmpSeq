@@ -4,7 +4,6 @@
 # LOAD LIBRARIES AND PREPARE VARIABLES #
 ########################################
 
-print("Entering PostProc")
 if (!require("argparse")) {
   install.packages("argparse", repos="http://cran.rstudio.com/")
   library("argparse")
@@ -25,25 +24,18 @@ if (!require("seqinr")) {
   install.packages("seqinr", repos="http://cran.rstudio.com/")
   library("seqinr")
 }
-#if (!require("parallel")) {
-#  install.packages("parallel", repos="http://cran.rstudio.com/")
-#  library("parallel")
-#}
 if (!require("Biostrings")) {
   install.packages("Biostrings", repos="http://cran.rstudio.com/")
   library("Biostrings")
 }
 
-print("Loaded libraries")
 # Pairwise Alignment
 seq_align <- function(seqs_df, path_to_ref) {
   align_df <- data.frame()
   # LOAD REFERENCE
   if (file.exists(path_to_ref)) {
-    print("Enter critical point")
     print(path_to_ref)
     ref <- read.fasta(path_to_ref)
-    print("Passed critical point")
     ref_str <- toupper(sapply(ref, c2s))
   } else {
     stop(paste("File", path_to_ref, "not found!"))
@@ -73,7 +65,6 @@ seq_align <- function(seqs_df, path_to_ref) {
   return(align_df)
 }
 
-print("Loaded functions")
 parser <- ArgumentParser()
 #Minimum arguments
 parser$add_argument("-s", "--seqtab", help="Path to input")
@@ -110,17 +101,17 @@ bimera = args$bimera
 fasta = args$fasta
 output = args$output
 
-#output = '/Users/jorgeamaya/Desktop/amplicon_decontamination_pipeline/Results/PostProc_DADA2/ASVTable.txt'
-#seqfile = '/Users/jorgeamaya/Desktop/amplicon_decontamination_pipeline/Results/seqtab.tsv'
-#path_to_refseq = '/Users/jorgeamaya/Desktop/amplicon_decontamination_pipeline/Data/pf3d7_ref_updated_v4.fasta'
-#strains = '3D7'
-#strain2 = 'DD2'
-#path_to_refseq2 = '/Users/jorgeamaya/Desktop/amplicon_decontamination_pipeline/Data/pfdd2_ref_updated_v3.fasta'
-#no_reference = FALSE
-#filter_file = "/Users/jorgeamaya/Desktop/amplicon_decontamination_pipeline/Data/snv_filters.txt"
-#indel_filter = '0.895'
-#bimera = '/Users/jorgeamaya/Desktop/amplicon_decontamination_pipeline/Results/ASVBimeras.txt'
-#fasta = TRUE
+# seqfile = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Results/seqtab.tsv'
+# bimera = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Results/ASVBimeras.txt'
+# filter_file = "/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Data/snv_filters.txt"
+# output = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Results/PostProc_DADA2/ASVTable.txt'
+# path_to_refseq = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Data/pf3d7_ref_updated_v4.fasta'
+# path_to_refseq2 = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Data/pfdd2_ref_updated_v3.fasta'
+# strains = '3D7'
+# strain2 = 'DD2'
+# no_reference = FALSE
+# indel_filter = '0.895'
+# fasta = TRUE
 
 #LOAD THE REFERENCES AND THE STRAINS
 if (!no_reference) {

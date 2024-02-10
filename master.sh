@@ -67,30 +67,42 @@ CONFIG.JSON
 #--dada2 \
 #--postproc_dada2 \
 #--asv_to_cigar
-
+#
 #Tested
 #python Code/Amplicon_TerraPipeline.py --config config_MiSeq_ci.json --overlap_reads \
 #--meta \
 #--repo \
 #--adaptor_removal \
-#--bbmerge \
-#--bbmerge_report \
-#--primer_removal \
-#--dada2_contamination
+#--contamination
 
 #Tested
+#python Code/Amplicon_TerraPipeline.py --config config_iSeq_ci.json --mixed_reads \
+#--meta \
+#--repo \
+#--adaptor_removal \
+#--contamination
+
+#python Code/Amplicon_TerraPipeline.py --config config_MiSeq_ci.json --overlap_reads \
+#--meta \
+#--repo \
+#--adaptor_removal \
+#--contamination \
+#--primer_removal \
+#--dada2 \
+#--postproc_dada2 \
+#--asv_to_cigar
+
+#python Code/Amplicon_TerraPipeline.py --config config_iSeq_ci.json --mixed_reads \
+#--meta \
+#--repo \
+#--adaptor_removal \
+#--contamination \
+#--primer_removal \
+#--dada2 \
+#--postproc_dada2 \
+#--asv_to_cigar
+
 python Code/Amplicon_TerraPipeline.py --config config_iSeq_ci.json --mixed_reads \
---meta \
---repo \
---adaptor_removal \
---dada2_contamination 
-
-#if [ -d "$PWD/Report/Merge/" ]; then
-	#These plots are optimized for datasets up to 100 specimens. This is by design as a standard illumina plate has 96 wells. Larger dataset will still produce the plots, but some column names will be missing. Names longer than 60 characters will extend outside the plotting area.
-#	Rscript Code/BBMerge.R "$PWD/Report/Merge/" "$PWD/Report/"
-#	Rscript Code/Contamination.R "$PWD/Report/Merge/" "$PWD/Report/" "$PWD/Data/"
-#fi
-
-#if [ -d "$PWD/Report/DADA2_Contamination/" ]; then
-#	Rscript Code/Contamination.R "$PWD/Report/DADA2_Contamination/" "$PWD/Report/" "$PWD/Data/" 1000 0.5
-#fi
+--dada2 \
+--postproc_dada2 \
+--asv_to_cigar

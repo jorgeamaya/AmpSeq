@@ -3,7 +3,6 @@
 ########################################
 # LOAD LIBRARIES AND PREPARE VARIABLES #
 ########################################
-print("Entering adjustASV")
 if (!require("seqinr")) {
   install.packages("seqinr", repos="http://cran.rstudio.com/")
   library("seqinr")
@@ -20,14 +19,6 @@ if (!require("Biostrings")) {
   install.packages("Biostrings", repos="http://cran.rstudio.com/")
   library("Biostrings")
 }
-#if (!require("parallel")) {
-#  install.packages("parallel", repos="http://cran.rstudio.com/")
-#  library("parallel")
-#}
-#if (!require("doMC")) {
-#  install.packages("doMC", repos="http://cran.rstudio.com/")
-#  library("doMC")
-#}
 
 # absolute = function(correctedASV, tar) {
 #   return(nchar(correctedASV) != nchar(tar))
@@ -47,7 +38,6 @@ if (!require("Biostrings")) {
 #                       paste0(ref_three_prime, ref_five_prime)),
 #                     method="levenshtein")) > 9)
 # }
-print("Pre parse arguments")
 parser <- ArgumentParser()
 parser$add_argument("-s", "--seqtab", 
                     help="Path to input")
@@ -62,17 +52,16 @@ parser$add_argument("-dist", "--distance",
 parser$add_argument("-o", "--output",
                     help="Path to output for corrected ASV list")
 
-print("Post parse arguments")
 args <- parser$parse_args()
 path_to_refseq <- args$reference
 seqfile <- args$seqtab
 output <- args$output
 dist = args$dist
-print("Arguments in variable")
-#seqfile = '/Users/jorgeamaya/Desktop/amplicon_decontamination_pipeline/Results/DADA2_NOP/seqtab.tsv'
-#path_to_refseq = '/Users/jorgeamaya/Desktop/amplicon_decontamination_pipeline/Data/pf3d7_ref_updated_v4.fasta'
+
+#seqfile = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Results/DADA2_NOP/seqtab.tsv'
+#path_to_refseq = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Data/pf3d7_ref_updated_v4.fasta'
 #dist = 'absolute'
-#output = '/Users/jorgeamaya/Desktop/amplicon_decontamination_pipeline/Results/DADA2_NOP/correctedASV.txt'
+#output = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Results/DADA2_NOP/correctedASV.txt'
 
 if (dist == 'ignore') {
   print("Caution: All Corrected ASV will be included in the output. Some ASVs in your table may be incorrect constructs.")
@@ -119,23 +108,14 @@ for (i in 1:length(seqs)) {
     correctedASV <- paste0(seq[1], substr(seq[2], (N + 1), nchar(seq[2])))
   }
   
-  # if (dist == 'absolute') {
-  #   if (absolute(correctedASV, tar)) {
-  #     N = NA
-  #     correctedASV = NA
-  #   }
-  # } else if (dist == 'levenshtein') {
-  #   if (levenshtein(correctedASV, tar)) {
-  #     N = NA
-  #     correctedASV = NA
-  #   }
-  # } else if (dist == 'percentage') {
-  #   if (per_size(correctedASV, tar)) {
-  #     N = NA
-  #     correctedASV = NA
-  #   }
-  # }
-  # 
+  #In no case, however, corrected AS should be shorter or longer than the reference. 
+  #The pipeline must maki no assumptions about the length of the corrected ASV since it is
+  #impossible to know if the ASV missing bases contains insertions or deletions.
+  if (nchar(correctedASV) != nchar(tar)) {
+    N = NA
+    correctedASV = NA
+  }
+  
   result <- data.frame(target = names(tar),
                        ASV = seqs[i],
                        correctedASV = correctedASV,
@@ -153,11 +133,17 @@ colnames(seqtab) <- as.character(df$correctedASV)
 
 # Create a new column for Sample_ID using row names and move the last column to the first position
 seqtab = as.data.frame(seqtab)
-seqtab$Sample_ID <- row.names(seqtab)
-row.names(seqtab) = NULL
-col_names <- names(seqtab)
-seqtab <- seqtab[, c(length(col_names), 1:(length(col_names)-1))]
 
-write.table(seqtab, file = seqfile_corrected, quote = FALSE, sep = "\t", row.names = FALSE)
+seqtab_final = data.frame(Sample_ID = row.names(seqtab))
+seqtab_final = cbind(seqtab_final, seqtab)
+row.names(seqtab_final) = NULL
 
-print("Leaving Adjust ASV")
+#seqtab$Sample_ID <- row.names(seqtab)
+#row.names(seqtab) = NULL
+#col_names <- names(seqtab)
+# Get the last column
+#last_column <- seqtab[, ncol(seqtab)]
+#seqtab <- seqtab[, -ncol(seqtab)]
+#seqtab <- cbind(last_column, seqtab)
+
+write.table(seqtab_final, file = seqfile_corrected, quote = FALSE, sep = "\t", row.names = FALSE)

@@ -70,7 +70,7 @@ match_fun = function(sample_id, sequence, barcodes, dist) {
         reverse_distance = match_tmp[[2]] 
         three_prime_end = match_tmp[[3]]
         reversefound = match_tmp[[4]]
-        match = "Forward_Match_Reverse_Missmatch"
+        match = "Forward_Match_Reverse_Mismatch"
         insert_size = nchar(sequence) - nchar(forward_barcode) - nchar(reverse_barcode)
         break
       } else {
@@ -87,7 +87,7 @@ match_fun = function(sample_id, sequence, barcodes, dist) {
         forward_distance = match_tmp[[2]] 
         five_prime_end = match_tmp[[3]]
         forwardfound = match_tmp[[4]]
-        match = "Forward_Missmatch_Reverse_Match"
+        match = "Forward_Mismatch_Reverse_Match"
         insert_size = nchar(sequence) - nchar(forward_barcode) - nchar(reverse_barcode)
         break
       } else{
@@ -121,14 +121,14 @@ match_fun = function(sample_id, sequence, barcodes, dist) {
     }  
 
     if (forwardfound && reversefound) {
-      match = "Missmatch" #Barcodes found, but they belong to a different well
+      match = "Mismatch" #Barcodes found, but they belong to a different well
       insert_size = nchar(sequence) - nchar(forward_barcode) - nchar(reverse_barcode)
     } else if (forwardfound && !reversefound) {
-      match = "Forward_Missmatch_Reverse_Missing" #Forward found, but it belongs to a different well
+      match = "Forward_Mismatch_Reverse_Missing" #Forward found, but it belongs to a different well
       insert_size = nchar(sequence) - nchar(forward_barcode) 
       
     } else if (!forwardfound && reversefound) {
-      match = "Reverse_Missmatch_Forward_Missing" #Reverse found, but they belong to a different well
+      match = "Reverse_Mismatch_Forward_Missing" #Reverse found, but they belong to a different well
       insert_size = nchar(sequence) - nchar(reverse_barcode)
       
     } else if (!forwardfound && !reversefound) {

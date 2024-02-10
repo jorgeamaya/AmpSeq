@@ -51,9 +51,9 @@ parser$add_argument("--bimera", action='store_true', help="Optionally output lis
 parser$add_argument("--terra", action='store_true', help="State whether the scripts are running in Terra")
 args <- parser$parse_args()
 
-# work_dir = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Results/DADA2_NOP_Contamination'
-# path_to_meta = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Results/PrimerRem_NOP/mixed_nop_prim_meta.tsv'
-# output_filename = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Results/DADA2_NOP_Contamination/seqtab.tsv'
+# work_dir = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Results/DADA2_OP_Contamination'
+# path_to_meta = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Results/PrimerRem_OP/mixed_op_prim_meta.tsv'
+# output_filename = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Results/DADA2_OP_Contamination/seqtab.tsv'
 # path_to_data_repo = '/Users/jorgeamaya/Desktop/Broad_Test/Benchmarking/iSeq_ci_Benchmarking'
 # path_to_flist = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Data/barcodes_matches_iseq_benchmarking.csv'
 # 
@@ -538,7 +538,15 @@ dev.off()
 #Add Zero Read Samples
 zeros.df = data.frame(matrix(ncol = ncol(seqtab), nrow = length(zeros)))
 colnames(zeros.df) = colnames(seqtab)
-rownames(zeros.df) = zeros
+
+# Define a function to extract everything before the second underscore
+extract_before_second_underscore <- function(input_string) {
+  parts <- strsplit(input_string, "_")[[1]]
+  result <- paste(parts[1], parts[2], sep = "_")
+  return(result)
+}
+zeros_corrected <- sapply(zeros, extract_before_second_underscore)
+rownames(zeros.df) = unname(zeros_corrected)
 seqtab = rbind(seqtab, zeros.df)
 
 #Generate output: sequence table to a tsv

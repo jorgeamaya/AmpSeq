@@ -7,11 +7,11 @@ path_to_flist = args[3]
 joined_threshold = as.numeric(args[4])
 contamination_threshold = as.numeric(args[5])
 
-data_dir = "/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Report/DADA2_Contamination/" 
-out_dir = "/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Report/"
-path_to_flist = "/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Data/barcodes_matches_iseq_benchmarking.csv"
-joined_threshold = 1000
-contamination_threshold = 0.5
+#data_dir = "/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Report/DADA2_Contamination/" 
+#out_dir = "/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Report/"
+#path_to_flist = "/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Data/barcodes_matches_iseq_benchmarking.csv"
+#joined_threshold = 1000
+#contamination_threshold = 0.5
 
 if (!require("ggplot2")) {
   install.packages("ggplot2", repos="http://cran.rstudio.com/")
@@ -376,8 +376,9 @@ if(basename(data_dir) == 'Merge'){
   
   mergedata = read.table(file.path(dirname(dirname(data_dir)), 
                                  "Results", "DADA2_Contamination", "seqtab.tsv"), 
-                       sep="\t", header=TRUE, row.names = 1)
+                       sep="\t", header=TRUE, row.names = 2)
   mergedata <- mergedata[match(samples_order, row.names(mergedata)), ]
+  mergedata <- mergedata[, !(names(mergedata) == "X")]
   
   m_sample_status_p_melted_reshaped$Well_Productivity = rowSums(mergedata)
   m_sample_status_p_melted_reshaped$Productivity_Flag = m_sample_status_p_melted_reshaped$Well_Productivity < joined_threshold
@@ -420,11 +421,16 @@ if(basename(data_dir) == 'Merge'){
   
   m_sample_status_p_melted_reshaped = m_sample_status_p_melted_reshaped[,
                                                                         !colnames(m_sample_status_p_melted_reshaped) %in% c("sample_id")]
+  
+  m_sample_status_p_melted_reshaped$samples <- rownames(m_sample_status_p_melted_reshaped)
+  rownames(m_sample_status_p_melted_reshaped) <- NULL
+  m_sample_status_p_melted_reshaped <- m_sample_status_p_melted_reshaped[, c("samples", setdiff(names(m_sample_status_p_melted_reshaped), "samples"))]
+  
   write.table(m_sample_status_p_melted_reshaped, 
               file=file.path(out_dir, "barcodes_report_dada2.tsv"), 
               quote = FALSE, 
               sep = "\t", 
-              row.names = TRUE,
+              row.names = FALSE,
               col.names = TRUE)
 }
 

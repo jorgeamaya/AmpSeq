@@ -10,7 +10,7 @@ import shutil
 import glob
 import gzip
 
-#from Bio import SeqIO
+from Bio import SeqIO
 #from Bio.Seq import reverse_complement
 #from Bio.Seq import Seq
 
@@ -241,6 +241,27 @@ def merge_seqtab(path_op, path_nop):
 
 	return(seqtab)
 
+def merge_seqtab_cont(path_op, path_nop):
+	"""
+	Merges overlapping and non-overlapping dada2 tables into a single table for decontamination pipeline.
+
+	Parameters:
+	path_op (str): File path to the overlapping dada2 table in CSV format.
+	path_nop (str): File path to the non-overlapping dada2 table in CSV format.
+
+	Returns:
+	seqtab (pd.DataFrame): Merged dada2 table containing both overlapping and non-overlapping data.
+	"""
+
+	if os.path.isfile(path_op) and os.path.isfile(path_nop):
+		seqtab_op = pd.read_csv(path_op, sep = "\t", index_col=0)
+		seqtab_nop = pd.read_csv(path_nop, sep = "\t", index_col=0)
+		seqtab = seqtab_op.merge(seqtab_nop, left_index=True, right_index=True, how='outer')
+	else:
+		sys.exit('Overlapping and/or non-overlapping dada2 tables not found! Exiting...')
+
+	return(seqtab)
+
 def merge_bimeras(path_op, path_nop):
 	"""
 	Merges overlapping and non-overlapping bimera tables from dada2 tables.
@@ -263,7 +284,7 @@ def merge_bimeras(path_op, path_nop):
 	return(bimeras)
 
 #RUN THE AMPLICON DECONTAMINATION SECTION OF THE PIPELINE
-def mergereads(sampleid, fileF, fileR, res_dir, subdir, read_maxlength=200, pairread_minlength=100, merge_minlength=100):
+def mergereads(sampleid, fileF, fileR, res_dir, subdir):
 	"""
 	This function uses bbmerge.sh to merge paired-end reads from two fastq files
 	(fileF and fileR) into a single fastq file. It also generates two other fastq
@@ -281,9 +302,6 @@ def mergereads(sampleid, fileF, fileR, res_dir, subdir, read_maxlength=200, pair
 	fileR: a string representing the file path of the reverse reads.
 	res_dir: a string representing the directory path of the results.
 	subdir: a string representing the subdirectory path of the results.
-	read_maxlength: an integer representing the maximum length of the read. Read after this will be trimmed.
-	pairread_minlength: an integer representing the minimum length of the mated reads.
-	merge_minlength: an integer representing the minimum merge length. Merge shorter than this will be discarded.
 
 	Returns: None
 
@@ -309,17 +327,12 @@ def mergereads(sampleid, fileF, fileR, res_dir, subdir, read_maxlength=200, pair
 		with open(meta_file_path, "a") as meta_file:
 			meta_file.write(f"{sampleid}\t{output_file_path}\t{file_nameout}\t{file_nameerr}\n")
 		
-		#The meaning of insert in mininsert is different to the meaning of insert in the cont_report.
-		#mininsert equals the final size of the merged read. That is, fbarcode + insert + rbarcode in cont_report. 	
-		cmd = ['bbmerge.sh', 
-			f'forcetrimright={read_maxlength}', 
-			f'minlength={pairread_minlength}', 
-			f'mininsert={merge_minlength}', 
+		cmd = ['fuse.sh', 
 			f'in1={fileF}',
 			f'in2={fileR}',
 			f'out={output_file_path}',
-			f'outu1={output_unmerged_f_path}', 
-			f'outu2={output_unmerged_r_path}']
+			f'fusepairs=t',
+			f'pad=10']
 
 		print(cmd)
 		proc = subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stderr)
@@ -357,47 +370,6 @@ def extract_bbmergefields(sampleid, mergefile, bbreportfile, path_to_flist, res_
 		bbmergedata = {}
 		bbmergedata['sampleid'] = sampleid
 
-		with open(bbreportfile, 'r') as f, open(os.path.join(rep_dir, subdir, "bbmergefields.tsv"), 'a') as o:
-			for line in f:
-				fields = line.split()
-				if not fields:	#Skip empty lines
-					continue	
-				if fields[0] == 'Pairs:':
-					bbmergedata['Pairs'] = fields[1]
-				elif fields[0] == 'Joined:':
-					bbmergedata['Joined'] = fields[1]
-					bbmergedata['JoinedP'] = fields[2].strip('%')
-				elif fields[0] == 'Ambiguous:':
-					bbmergedata['Ambiguous'] = fields[1]
-					bbmergedata['AmbiguousP'] = fields[2].strip('%') 
-				elif fields[0] == 'No':
-					bbmergedata['No_Solution'] = fields[2]
-					bbmergedata['No_SolutionP'] = fields[3].strip('%') 
-				elif fields[0] == 'Too':
-					bbmergedata['Too_Short'] = fields[2]
-					bbmergedata['Too_ShortP'] = fields[3].strip('%') 
-				elif fields[0] == 'Avg':
-					bbmergedata['Avg_Insert'] = fields[2]
-				elif fields[0] == 'Standard':
-					bbmergedata['Standard_Deviation'] = fields[2]
-				elif fields[0] == 'Mode:':
-					bbmergedata['Mode'] = fields[1]
-				elif fields[0] == 'Insert':
-					bbmergedata['Insert_range_low'] = fields[2]
-					bbmergedata['Insert_range_up'] = fields[4]
-				elif fields[0] == '90th':
-					bbmergedata['90th_pc'] = fields[2]
-				elif fields[0] == '75th':
-					bbmergedata['75th'] = fields[2]
-				elif fields[0] == '50th':
-					bbmergedata['50th_pc'] = fields[2]
-				elif fields[0] == '25th':
-					bbmergedata['25th_pc'] = fields[2]
-				elif fields[0] == '10th':
-					bbmergedata['10th_pc'] = fields[2]
-
-			o.write('\t'.join(bbmergedata.values()) + '\n')
-
 		if terra:
 			platform = '--terra'
 
@@ -415,3 +387,47 @@ def extract_bbmergefields(sampleid, mergefile, bbreportfile, path_to_flist, res_
 	else:
 		sys.exit('Extract bbmerge report halted : bbmerge report file not found! Exiting..')
 	return()
+
+def filter_fastq_by_read_names(input_fastq_1, input_fastq_2, tsv_file, output_fastq_1, output_fastq_2):
+	"""
+	Filter reads from paired-end FASTQ files based on read names provided in a TSV file and save them to new output files.
+	"""
+	def gzip_file(input_filename, output_filename):
+		with open(input_filename, 'rb') as f_in:
+			with gzip.open(output_filename, 'wb') as f_out:
+				f_out.writelines(f_in)
+		os.remove(input_filename)
+
+	def load_read_names_from_tsv(tsv_file):
+		"""
+		Load read names from the first column of a TSV file.
+		"""
+		read_names = set()
+		with open(tsv_file, 'r') as tsv:
+			for line in tsv:
+				read_name = line.strip().split('\t')[0]
+				read_name = read_name.strip().split(' ')[0]
+				match_status = line.strip().split('\t')[7]
+				if match_status == 'Match':
+					read_names.add(read_name[1:])
+		return read_names
+
+	def filter_fastq(input_fastq, output_fastq, read_names):
+		"""
+		Filter reads from input FASTQ file based on read names and save them to output FASTQ file.
+		"""
+		with open(output_fastq, 'w') as output_file:
+			with gzip.open(input_fastq, "rt") as handle:
+				for record in SeqIO.parse(handle, 'fastq'):
+					if record.id.strip() in read_names:
+						SeqIO.write(record, output_file, 'fastq')
+
+		output_file_gzip = output_fastq+".gz"
+		gzip_file(output_fastq, output_file_gzip)
+
+	# Load read names from TSV file
+	read_names = load_read_names_from_tsv(tsv_file)
+
+	# Filter and save reads from paired-end FASTQ files
+	filter_fastq(input_fastq_1, output_fastq_1, read_names)
+	filter_fastq(input_fastq_2, output_fastq_2, read_names)
