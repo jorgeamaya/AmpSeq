@@ -237,8 +237,18 @@ if (!no_reference) {
 
 if (file.exists(bimera)) {
   bimeras <- fread(bimera)
-  #seqs_df <- merge(seqs_df,bimeras, by = "sequence", all = TRUE, sort = FALSE)
-  #asvdf <- merge(asvdf,seqs_df[,2:3], by = "hapid", all = TRUE, sort = FALSE)
+  #Remove from the bimera list the ASV that failed adjustment
+  new_filename <- "correctedASV.txt"
+  new_directory <- "DADA2_NOP"
+  directory_path <- dirname(bimera)
+  correctedASV_path <- file.path(directory_path, new_directory, new_filename)
+  
+  if(file.exists(correctedASV_path)){
+    correctedASV = read.csv("Results/DADA2_NOP/correctedASV.txt", sep = "\t")
+    asv_list = correctedASV$ASV[is.na(correctedASV$correctedASV)]
+    bimeras = bimeras[!bimeras$sequence %in% asv_list,]
+  }
+  
   asvdf$bimera = bimeras$bimera
 } else {
   warning(paste("File", bimera, "not found. Skipping bimera flag.."))

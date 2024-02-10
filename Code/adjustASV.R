@@ -58,10 +58,10 @@ seqfile <- args$seqtab
 output <- args$output
 dist = args$dist
 
-#seqfile = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Results/DADA2_NOP/seqtab.tsv'
-#path_to_refseq = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Data/pf3d7_ref_updated_v4.fasta'
-#dist = 'absolute'
-#output = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Results/DADA2_NOP/correctedASV.txt'
+# seqfile = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Results/DADA2_NOP/seqtab.tsv'
+# path_to_refseq = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Data/pf3d7_ref_updated_v4.fasta'
+# dist = 'absolute'
+# output = '/Users/jorgeamaya/Desktop/Terra_Development/amplicon_decontamination_pipeline/Results/DADA2_NOP/correctedASV.txt'
 
 if (dist == 'ignore') {
   print("Caution: All Corrected ASV will be included in the output. Some ASVs in your table may be incorrect constructs.")
@@ -135,15 +135,13 @@ colnames(seqtab) <- as.character(df$correctedASV)
 seqtab = as.data.frame(seqtab)
 
 seqtab_final = data.frame(Sample_ID = row.names(seqtab))
+
+#Remove ASV that failed adjustment
+vec = colnames(seqtab) != "NA" 
+seqtab = seqtab[, which(vec == TRUE)]
+
+seqtab = seqtab[, colnames(seqtab) != "NA"]
 seqtab_final = cbind(seqtab_final, seqtab)
 row.names(seqtab_final) = NULL
-
-#seqtab$Sample_ID <- row.names(seqtab)
-#row.names(seqtab) = NULL
-#col_names <- names(seqtab)
-# Get the last column
-#last_column <- seqtab[, ncol(seqtab)]
-#seqtab <- seqtab[, -ncol(seqtab)]
-#seqtab <- cbind(last_column, seqtab)
 
 write.table(seqtab_final, file = seqfile_corrected, quote = FALSE, sep = "\t", row.names = FALSE)

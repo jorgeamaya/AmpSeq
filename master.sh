@@ -102,7 +102,3 @@ CONFIG.JSON
 #--postproc_dada2 \
 #--asv_to_cigar
 
-python Code/Amplicon_TerraPipeline.py --config config_iSeq_ci.json --mixed_reads \
---dada2 \
---postproc_dada2 \
---asv_to_cigar
