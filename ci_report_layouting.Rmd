@@ -205,15 +205,16 @@ plotabs = ggplot(m_sample_status_melted, aes(match_status, sample_id)) +
   scale_x_discrete(labels = gsub("_", " ", match_order))
 
 plotper = ggplot(m_sample_status_p_melted, aes(match_status, sample_id)) +   
-  geom_tile(aes(fill = value)) +
-  guides(fill = guide_colourbar(title = "Proportion of merged reads")) +
-  scale_fill_viridis(option = "inferno") + theme_bw() +
+  geom_tile(aes(fill = cut(value, breaks=seq(-0.1, 1, by = 0.1), labels=seq(0.0, 1, by = 0.1))), colour = "white") +
+  scale_fill_manual(drop=FALSE, values=colorRampPalette(c("white","green", "yellow", "red", "black"))(11), na.value= "white", name="Proportion of merged reads") + theme_bw() +
   xlab("Match Status") + 
   ylab("Experiment/Sample ID") +
   theme(legend.position="top",
         legend.key.width= unit(0.5, 'in'),
         axis.text.x = element_text(angle = 45, hjust=1)) + 
   scale_x_discrete(labels = gsub("_", " ", match_order))
+
+
 ```
 
 ## Unsuable files
@@ -242,7 +243,9 @@ plotabs
 
 ## Relative Read Counts
 
-This plot shows the relative frequency of reads per match category per sample. The number represented by the colors in each row (sample) add up to 100%. In this plot, it is easier to identify which samples may have been contaminated. Specifically, all samples for which the "Match" tile does not display the brightest color are likely to be contaminated. To identify the type of contamination, read the tile label at the bottom of the plot. 
+This plot shows the relative frequency of reads per match category per sample. The number represented by the colors in each row (sample) add up to 100%. In this plot, it is easier to identify which samples may have been contaminated. The color key shows the proportion of reads in intervals of 0.1 for each sample (y axis) according to each category of contamination (x axis). The right most category aggregates reads that have missing barcodes in both the forward and the reverse read. The proportions have been rounded to the next highest decimal (For example, both 0.01 and 0.9 are rounded to 0.1). This was done to avoid missing that contamination is present in the well. The last col
+
+The color coding reflects the level frequency of each type of pair of reads in each well. Specifically, the Match tile is colored black for uncontaminated samples while all the remaining tiles are white. In contaminated samples, the "Match" tile displays a color different from black and one or more of the other tiles display intermediate colors. To identify the type of contamination, read the tile label at the bottom of the plot. The "Match" tile of a fully contaminated sample (a sample in which all reads come from another well) is white.
 
 ```{r 'Match Status per sample id plots - relative', fig.height = 15, echo=FALSE}
 plotper
