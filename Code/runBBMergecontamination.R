@@ -43,50 +43,63 @@ if (terra) {
 barcodes = read.csv(path_to_flist, sep = ",", header = TRUE)
 dist = 2
 
-# Open the Fastq file
+
+# Open the Fastq file and count the number of reads
+con <- file(fastq_file, "r")
+num_lines <- length(readLines(con))
+close(con)
+num_reads <- num_lines / 4
+print(paste("Number of reads in the FASTQ file:", num_reads))
+
+seq_names <- vector("character", length = num_reads)
+forward_barcodes <- vector("character", length = num_reads)
+reverse_barcodes <- vector("character", length = num_reads)
+forward_distances <- vector("numeric", length = num_reads)
+reverse_distances <- vector("numeric", length = num_reads)
+five_prime_ends <- vector("numeric", length = num_reads)
+three_prime_ends <- vector("numeric", length = num_reads)
+match_categories <- vector("numeric", length = num_reads)
+insert_sizes <- vector("numeric", length = num_reads)
+
+# Reopen the Fastq file
 con <- file(fastq_file, "r")
 sample <- sub(".*/([^/]+)_merged\\.fastq", "\\1", fastq_file)
-  
-seq_names = c()
-forward_barcodes = c()
-reverse_barcodes = c()
-forward_distances = c()
-reverse_distances = c()
-five_prime_ends = c()
-three_prime_ends = c()
-match_categories = c()
-insert_sizes = c()
 print(sample)
-  
+
+i <- 0
 while (length(line <- readLines(con, n = 4)) > 0) {
+  i <- i + 1
   seq_name <- line[1]
   sequence <- line[2]
 
-  match_tmp = match_fun(sample, sequence, barcodes, dist)
-    
-  seq_names = c(seq_names, seq_name)
-  forward_barcodes = c(forward_barcodes, match_tmp[[1]])
-  reverse_barcodes = c(reverse_barcodes, match_tmp[[2]])
-  forward_distances = c(forward_distances, match_tmp[[3]])
-  reverse_distances = c(reverse_distances, match_tmp[[4]])
-  five_prime_ends = c(five_prime_ends, match_tmp[[5]])
-  three_prime_ends = c(three_prime_ends, match_tmp[[6]])
-  match_categories = c(match_categories, match_tmp[[7]])
-  insert_sizes = c(insert_sizes, match_tmp[[8]])
-    
+  match_tmp <- match_fun(sample, sequence, barcodes, dist)
+
+  # Assign values directly to preallocated vectors
+  seq_names[i] <- seq_name
+  forward_barcodes[i] <- match_tmp[[1]]
+  reverse_barcodes[i] <- match_tmp[[2]]
+  forward_distances[i] <- match_tmp[[3]]
+  reverse_distances[i] <- match_tmp[[4]]
+  five_prime_ends[i] <- match_tmp[[5]]
+  three_prime_ends[i] <- match_tmp[[6]]
+  match_categories[i] <- match_tmp[[7]]
+  insert_sizes[i] <- match_tmp[[8]]
 }
-  
+
 close(con)
-  
-df = data.frame(sequence = seq_names,
-                 forward_barcodes = forward_barcodes,
-                 reverse_barcodes = reverse_barcodes, 
-                 forward_distances = forward_distances,
-                 reverse_distances = reverse_distances,
-                 five_prime_ends = five_prime_ends,
-                 three_prime_ends = three_prime_ends,
-                 match_status = match_categories,
-                 insert_sizes = insert_sizes)
+
+# Create data frame
+df <- data.frame(
+  sequence = seq_names,
+  forward_barcodes = forward_barcodes,
+  reverse_barcodes = reverse_barcodes,
+  forward_distances = forward_distances,
+  reverse_distances = reverse_distances,
+  five_prime_ends = five_prime_ends,
+  three_prime_ends = three_prime_ends,
+  match_status = match_categories,
+  insert_sizes = insert_sizes
+)
               
 output_filename_o = file.path(dirname(dirname(work_dir)), "Report", "Merge", paste0(sample, "_final.tsv"))
 write.table(df, file=output_filename_o, quote = FALSE, sep = "\t", row.names = FALSE)

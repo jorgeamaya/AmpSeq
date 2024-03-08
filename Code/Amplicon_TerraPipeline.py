@@ -5,7 +5,10 @@ import sys
 import argparse
 import json
 import subprocess
-#import multiprocessing
+import csv
+import gzip
+
+from Bio import SeqIO
 
 import amplicon_decontamination as ad
 import asv_to_cigar as ac
@@ -26,13 +29,12 @@ def main():
 	#Parse command line arguments
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--config', help="Path to config.json file.", required =True)
-	parser.add_argument('--overlap_reads', action="store_true", help="Specify whether the data contains paired reads that overlap on their targets. For example, MiSeq paired reads of 250bp for 500bp or shorter targets.")
-	parser.add_argument('--mixed_reads', action="store_true", help="Specify whether the data contains a mix of reads that overlap and do not overlap on their targets. For example, iSeq paired reads of 150bp for targets that are shorter than 300bp long and targets that are longer than 300bp.")
 	parser.add_argument('--terra', action="store_true", help="Specify whether the pipeline is being run in the Terra platform.")
 	parser.add_argument('--meta', action="store_true", help="Specify if metadata file must be created. This flag runs the pipeline from the beginning.")
 	parser.add_argument('--repo', action="store_true", help="Specify if the reports must be created.")
 	parser.add_argument('--contamination', action="store_true", help="Specify if contamination detection is performed.")
 	parser.add_argument('--adaptor_removal', action="store_true", help="Specify if adaptor removal needed.")
+	parser.add_argument('--separate_reads', action="store_true", help="Specify if reads must be separated by size.")
 	parser.add_argument('--primer_removal', action="store_true", help="Specify if primer removal needed.")
 	parser.add_argument('--dada2', action="store_true", help="Specifiy if standard preprocess merge with DADA2 is performed.")
 	parser.add_argument('--postproc_dada2', action="store_true", help="Specifiy if postProcess of DADA2 results is perfomed.")
@@ -41,9 +43,6 @@ def main():
 	args = parser.parse_args()
 
 	#Check minimum arguments and contracdicting flags
-	if not any([args.mixed_reads, args.overlap_reads]):
-		sys.exit('Pre-process halted: User must declare the mixed_reads or overlap_reads flags.')
-
 	if args.terra:
 		print("Pipeline is running in Terra. Adjusted paths will be used.")
 	else:
@@ -53,11 +52,11 @@ def main():
 	with open(args.config, 'r') as config_file:
 		config_inputs = json.load(config_file)
 		path_to_fq = config_inputs['path_to_fq']
-		path_to_flist = config_inputs['path_to_flist']
+		path_to_flist = 'barcodes_matches.csv'
+		pr1 = 'primers_fw.fasta'
+		pr2 = 'primers_rv.fasta'
 		if 'pattern_fw' in config_inputs.keys(): pattern_fw = config_inputs['pattern_fw']
 		if 'pattern_rv' in config_inputs.keys(): pattern_rv = config_inputs['pattern_rv']
-		if 'pr1' in config_inputs.keys(): pr1 = config_inputs['pr1']
-		if 'pr2' in config_inputs.keys(): pr2 = config_inputs['pr2']
 		if 'Class' in config_inputs.keys(): Class = config_inputs['Class']
 		if 'maxEE' in config_inputs.keys(): maxEE = config_inputs['maxEE']
 		if 'trimRight' in config_inputs.keys(): trimRight = config_inputs['trimRight']
@@ -69,13 +68,8 @@ def main():
 		if 'saveRdata' in config_inputs.keys(): saveRdata = config_inputs['saveRdata']
 		if 'justConcatenate' in config_inputs.keys(): justConcatenate = config_inputs['justConcatenate']
 		if 'maxMismatch' in config_inputs.keys(): maxMismatch = config_inputs['maxMismatch']
-		if 'overlap_pr1' in config_inputs.keys(): overlap_pr1 = config_inputs['overlap_pr1']
-		if 'overlap_pr2' in config_inputs.keys(): overlap_pr2 = config_inputs['overlap_pr2']
-		if 'reference' in config_inputs.keys(): reference = config_inputs['reference']
 		if 'adjust_mode' in config_inputs.keys(): adjust_mode = config_inputs['adjust_mode']
-		if 'path_to_snv' in config_inputs.keys(): path_to_snv = config_inputs['path_to_snv']
 		if 'no_ref' in config_inputs.keys(): no_ref = config_inputs['no_ref']
-		if 'reference2' in config_inputs.keys(): reference2 = config_inputs['reference2']
 		if 'strain' in config_inputs.keys(): strain = config_inputs['strain']
 		if 'strain2' in config_inputs.keys(): strain2 = config_inputs['strain2']
 		if 'polyN' in config_inputs.keys(): polyN = int(config_inputs['polyN'])
@@ -85,7 +79,6 @@ def main():
 		if 'max_indel_dist' in config_inputs.keys(): max_indel_dist = int(config_inputs['max_indel_dist'])
 		if 'include_failed' in config_inputs.keys(): include_failed = eval(config_inputs['include_failed'])
 		if 'exclude_bimeras' in config_inputs.keys(): exclude_bimeras = eval(config_inputs['exclude_bimeras'])
-		if 'amp_mask' in config_inputs.keys(): amp_mask = config_inputs['amp_mask']
 		if 'verbose' in config_inputs.keys(): verbose = eval(config_inputs['verbose'])
 
 	### PREPARE OUTPUT DIRECTORIES
@@ -191,6 +184,43 @@ def main():
 		ad.create_meta(os.path.join(res_dir, "AdaptorRem"), res_dir, "AdaptorRem", "adaptorrem_meta.tsv",
 			pattern_fw="*_val_1.fq.gz", pattern_rv="*_val_2.fq.gz")
 
+	if args.separate_reads:
+		meta = open(os.path.join(res_dir, "AdaptorRem", "adaptorrem_meta.tsv"), 'r')
+		samples = meta.readlines()
+		ad.flush_dir(res_dir, "Demultiplex_by_Size")
+		
+		#Get the reads size
+		with gzip.open(samples[0].split()[1], 'rt') as file:
+			next(file)  # skip the first line
+			read_length = len(next(file).strip())
+
+		#Get the size of the reference ASVs		
+		if os.path.exists("reference_panel_1.fasta"):
+			ref_files = ["reference_panel_1.fasta"]
+			if os.path.exists("reference_panel_2.fasta"):
+				ref_files.append("reference_panel_2.fasta")
+		else:
+			sys.exit('At the least one reference is necessary to separate reads according to ASV target size.')
+
+		asv_lengths = {}
+		for ref_file in ref_files:
+			for record in SeqIO.parse(ref_file, "fasta"):
+				if record.id not in asv_lengths:
+					asv_lengths[record.id] = len(record.seq)
+				elif asv_lengths[record.id] < len(record.seq):
+					#When two reference genomes are provided, if an ASV is already present, always reference the longest version.
+					asv_lengths[record.id] = len(record.seq)
+
+		with open(os.path.join(res_dir, "asv_lengths.tsv"), 'w', newline='') as csvfile:
+			writer = csv.writer(csvfile)
+			writer.writerow(['ASV', 'Length'])
+			for seq_id, length in asv_lengths.items():
+				writer.writerow([seq_id, length])
+
+		for sample in samples:
+			slist = sample.split()
+			ad.demultiplex_per_size(slist[0], slist[1], slist[2], pr1, pr2, res_dir, "Demultiplex_by_Size", read_length, asv_lengths)
+			
 	#Remove primers
 	#For a set where all reads have overlap
 	if args.overlap_reads and args.primer_removal:
@@ -271,12 +301,12 @@ def main():
 		bimera_nop = os.path.join(res_dir, 'DADA2_NOP', 'ASVBimeras.txt')
 
 		#ASV modification block for non-op targets and merge two ASV tables
-		if reference is not None:
+		if os.path.exists("reference_panel_1.fasta"):
 			if args.terra:
 				path_to_program = os.path.join("/", "Code/adjustASV.R")
 			else:
 				path_to_program = os.path.join("Code/adjustASV.R")
-			adjASV = ['Rscript', path_to_program, '-s', seqtab_nop, '-ref', str(reference),
+			adjASV = ['Rscript', path_to_program, '-s', seqtab_nop, '-ref', "reference_panel_1.fasta",
 			'-dist', adjust_mode,
 			'-o', os.path.join(res_dir, 'DADA2_NOP', 'correctedASV.txt')]
 			print(adjASV)
@@ -314,9 +344,9 @@ def main():
 		if no_ref == 'True':
 			postProc.extend(['-no_ref'])
 		else:
-			postProc.extend(['--reference', str(reference), '--strain', strain])
-			if reference2 != "":
-				postProc.extend(['--reference2', str(reference2), '--strain2', strain2])
+			postProc.extend(['--reference', "reference_panel_1.fasta", '--strain', strain])
+			if os.path.exists("reference_panel_2.fasta"):
+				postProc.extend(['--reference2', "reference_panel_2.fasta", '--strain2', strain2])
 
 		print(postProc)
 		procASV = subprocess.Popen(postProc)
@@ -332,7 +362,7 @@ def main():
 		path_to_table = os.path.join(res_dir, "PostProc_DADA2", "ASVTable.txt") #ASV table from DADA2 pipeline
 		path_to_out = os.path.join(res_dir, "CIGARVariants_Bfilter.out.tsv") #Output seqtab tsv file with amplicon/variant counts
 		path_asv_to_cigar = os.path.join(res_dir, "ASV_to_CIGAR", "ASV_to_CIGAR.out.txt") #Output file for ASV -> CIGAR string table 
-		path_to_amp_db = reference #Amplicon sequence fasta file
+		path_to_amp_db = "reference_panel_1.fasta" #Amplicon sequence fasta file
 		path_to_alignments = os.path.join(res_dir, "ASV_to_CIGAR", "alingments") #Directory to store ASV alignment files
 
 		print(f"INFO: Loading {path_to_amp_db}")
@@ -341,10 +371,9 @@ def main():
 			print(f"ERROR: No amplicons in {path_to_amp_db}")
 			sys.exit(1)
 
-		#Disabled. Possibly deprecated
-		if os.path.exists(amp_mask):
-			print(f"INFO: Loading {amp_mask}")
-			mask = ac.parse_dustmasker(amp_mask)
+		if os.path.exists("amp_mask.txt"):
+			print(f"INFO: Loading amp_mask.txt")
+			mask = ac.parse_dustmasker("amp_mask.txt")
 		else:
 			print(f"INFO: No mask data specified.")
 			mask = {}

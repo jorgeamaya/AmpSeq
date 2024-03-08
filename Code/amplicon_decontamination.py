@@ -11,8 +11,6 @@ import glob
 import gzip
 
 from Bio import SeqIO
-#from Bio.Seq import reverse_complement
-#from Bio.Seq import Seq
 
 #GENERAL USE SCRIPTS SECTION
 def flush_dir(parent_dir, *dirnames):
@@ -75,6 +73,31 @@ def create_meta(path_to_fq, parent_dir, dirname, filename, pattern_fw, pattern_r
 
 	print(f"Meta file generated at location {outfile}")
 	return()
+
+def gzip_file(input_filename, output_filename):
+	"""
+	Compresses a file using gzip compression.
+
+	Args:
+	- input_filename (str): Path to the input file.
+	- output_filename (str): Path to the output compressed file.
+
+	Returns:
+	- None
+
+	Raises:
+	- FileNotFoundError, IOError, OSError, gzip.BadGzipFile
+
+	Compresses the input file using gzip compression and saves the result to the output file.
+	The input file is removed after compression.
+
+	Example:
+	gzip_file("input.txt", "output.txt.gz")
+	"""
+	with open(input_filename, 'rb') as f_in:
+		with gzip.open(output_filename, 'wb') as f_out:
+			f_out.writelines(f_in)
+	os.remove(input_filename)
 
 #ADAPTOR AND PRIMER REMOVAL SECTION						
 def adaptor_rem(sampleid, fileF, fileR, res_dir, subdir, qvalue = 5, length = 20): 
@@ -392,12 +415,6 @@ def filter_fastq_by_read_names(input_fastq_1, input_fastq_2, tsv_file, output_fa
 	"""
 	Filter reads from paired-end FASTQ files based on read names provided in a TSV file and save them to new output files.
 	"""
-	def gzip_file(input_filename, output_filename):
-		with open(input_filename, 'rb') as f_in:
-			with gzip.open(output_filename, 'wb') as f_out:
-				f_out.writelines(f_in)
-		os.remove(input_filename)
-
 	def load_read_names_from_tsv(tsv_file):
 		"""
 		Load read names from the first column of a TSV file.
@@ -431,3 +448,82 @@ def filter_fastq_by_read_names(input_fastq_1, input_fastq_2, tsv_file, output_fa
 	# Filter and save reads from paired-end FASTQ files
 	filter_fastq(input_fastq_1, output_fastq_1, read_names)
 	filter_fastq(input_fastq_2, output_fastq_2, read_names)
+
+def hamming_distance(str1, str2):
+	if len(str1) != len(str2):
+		raise ValueError("Input strings must have the same length")
+
+	distance = 0
+	for i in range(len(str1)):
+		if str1[i] != str2[i]:
+			distance += 1
+	return distance
+
+def demultiplex_per_size(sampleid, fileF, fileR, pr1, pr2, res_dir, subdir, read_length, asv_lengths, mismatches = 2):
+	#Retrieve Primer
+	primer_dict = {}
+
+	output_fastq_fw_nop = os.path.join(res_dir, subdir, sampleid, "_nop_L001_R1_001.fastq")
+	output_fastq_rv_nop = os.path.join(res_dir, subdir, sampleid, "_nop_L001_R2_001.fastq")
+	output_fastq_fw_op = os.path.join(res_dir, subdir, sampleid, "_op_L001_R1_001.fastq")
+	output_fastq_rv_op = os.path.join(res_dir, subdir, sampleid, "_op_L001_R2_001.fastq")
+
+	with open(pr1, 'r') as forward_fasta, open(pr2, 'r') as reverse_fasta:
+		for forward_record, reverse_record in zip(SeqIO.parse(forward_fasta, 'fasta'), SeqIO.parse(reverse_fasta, 'fasta')):
+			if forward_record.id == reverse_record.id:
+				primer_dict[forward_record.id] = {forward_record.seq, reverse_record.seq}
+
+	with gzip.open(os.path.join("Fastq", fileF), 'rt') as forward_fastq, gzip.open(os.path.join("Fastq", fileR), 'rt') as reverse_fastq:
+		for forward_record in SeqIO.parse(forward_fastq, 'fastq'):
+			print(sampleid + " " + forward_record.id)
+			print(forward_record.seq)
+			print(len(forward_record.seq))
+#		for forward_record, reverse_record in zip(SeqIO.parse(forward_fastq, 'fastq'), SeqIO.parse(reverse_fastq, 'fastq')):
+#			for asv, primers in primer_dict.items():
+#				primer_fw, primer_rv = primers
+#				len_fw = len(primer_fw)
+#				len_rv = len(primer_rv)
+#				print(sampleid + " " + forward_record.id)
+#				print("primer_fw: " + primer_fw)
+#				print("forward_record.seq: " + forward_record.seq)
+#				print("forward_record.seq[:len_fw]: " + forward_record.seq[:len_fw])
+#				print("primer_rv: " + primer_rv)
+#				print("reverse_record.seq: " + reverse_record.seq)
+#				print("reverse_record.seq[:len_rv]: " + reverse_record.seq[:len_rv])
+
+#				hamming_distance_fw = hamming_distance(primer_fw, str(forward_record.seq[:len_fw]))
+#				hamming_distance_rv = hamming_distance(primer_rv, str(reverse_record.seq[:len_rv]))
+#
+#				forward_read_len_no_primer = len(forward_record.seq) - len_fw
+#				reverse_read_len_no_primer = len(reverse_record.seq) - len_rv
+#				usable_read_length = forward_read_len_no_primer + reverse_read_len_no_primer				
+
+#				if hamming_distance_fw <= mismatches and hamming_distance_rv <= mismatches:
+#					if asv_lengths[asv] > usable_read_length:
+#						#Store reads with absolute no overlap
+#						with open(output_fastq_fw_nop, 'a') as output_file:
+#							SeqIO.write(forward_record, output_file, 'fastq')
+#						with open(output_fastq_rv_nop, 'a') as output_file:
+#							SeqIO.write(reverse_record, output_file, 'fastq')
+#						break
+#					elif asv_lengths[asv] > usable_read_length - 10:
+#						#Store reads with at least 10bp overlap
+#						with open(output_fastq_fw_op, 'a') as output_file:
+#							SeqIO.write(forward_record, output_file, 'fastq')
+#						with open(output_fastq_rv_op, 'a') as output_file:
+#							SeqIO.write(reverse_record, output_file, 'fastq')
+#						break
+#					else:
+#						#Clip and store reads with intermediate overlap (between 1 and 10bps)
+#						forward_record.seq = forward_record.seq[:-10]
+#						reverse_record.seq = reverse_record.seq[:-10]
+#						with open(output_fastq_fw_nop, 'a') as output_file:
+#							SeqIO.write(forward_record, output_file, 'fastq')
+#						with open(output_fastq_rv_nop, 'a') as output_file:
+#							SeqIO.write(reverse_record, output_file, 'fastq')
+#						break
+
+#	gzip_file(output_fastq_fw_nop, output_fastq_fw_nop + ".gz")
+#	gzip_file(output_fastq_rv_nop, output_fastq_rv_nop + ".gz")
+#	gzip_file(output_fastq_fw_op, output_fastq_fw_op + ".gz")
+#	gzip_file(output_fastq_fw_op, output_fastq_fw_op + ".gz")	

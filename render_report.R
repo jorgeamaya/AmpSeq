@@ -12,6 +12,10 @@ parser$add_argument("-m", "--minreads_threshold", help="Minimum threshold to fla
 parser$add_argument("-c", "--contamination_threshold", help="Percentage of reads of foreign origin necessary to classify a well as contaminated")
 parser$add_argument("-mf", "--missing_files", help="List of missing files")
 
+# Parse the command-line arguments
+args <- parser$parse_args()
+print(args)
+
 # Assign variables based on command-line arguments
 render("/ci_report_layouting.Rmd", params = list(
   data_dir = args$data_dir,

@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 ###############################################################################
 #SCRIPT NAME: Amplicon Terra Pipeline master script    	 		      #
@@ -50,10 +50,20 @@ CONFIG.JSON
 
 #conda activate ampseq_env
 
+mv Data/barcodes_matches.csv .
+mv Data/primers_fw.fasta .
+mv Data/primers_rv.fasta .
+
+python Code/Amplicon_TerraPipeline.py --config config.json --mixed_reads --terra --meta --adaptor_removal --contamination #\
+
+#python Code/Amplicon_TerraPipeline.py --config config_iSeq.json --mixed_reads \
+#--separate_reads
+
 #Tested
 #python Code/Amplicon_TerraPipeline.py --config config_iSeq.json --mixed_reads \
 #--meta \
 #--adaptor_removal \
+#--separate_reads
 #--primer_removal \
 #--dada2 \
 #--postproc_dada2 \
@@ -92,11 +102,11 @@ CONFIG.JSON
 #--postproc_dada2 \
 #--asv_to_cigar
 
-#python Code/Amplicon_TerraPipeline.py --config config_iSeq_ci.json --mixed_reads \
+#python Code/Amplicon_TerraPipeline.py --config config_iSeq_ci.json --mixed_reads --terra \ 
 #--meta \
 #--repo \
 #--adaptor_removal \
-#--contamination \
+#--contamination #\
 #--primer_removal \
 #--dada2 \
 #--postproc_dada2 \

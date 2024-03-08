@@ -1,3 +1,8 @@
+reverse_complement <- function(sequence) {
+  complement <- c(A = "T", T = "A", C = "G", G = "C")
+  paste(rev(complement[strsplit(toupper(sequence), "")[[1]]]), collapse = "")
+}
+
 search_forward = function(sequence, forward_barcode, forwardfound, forward_distance, five_prime_end, dist) {
   forward_barcode = as.character(forward_barcode)
   if (stringdist(substr(sequence, 1, nchar(forward_barcode)), forward_barcode, method = "hamming") <= dist) {
@@ -13,14 +18,14 @@ search_forward = function(sequence, forward_barcode, forwardfound, forward_dista
   ))
 }
 
-search_reverse = function(sequence, reverse_barcode, reversefound, reverse_distance, three_prime_end, dist) {
-  reverse_barcode = as.character(reverse_barcode)
+search_reverse = function(sequence, reverse_barcode_original, reversefound, reverse_distance, three_prime_end, dist) {
+  reverse_barcode = reverse_complement(as.character(reverse_barcode_original))
   if (stringdist(substr(sequence, nchar(sequence)-nchar(reverse_barcode)+1, nchar(sequence)), reverse_barcode, method = "hamming") <= dist && !reversefound) {
     reverse_distance = stringdist(substr(sequence, nchar(sequence)-nchar(reverse_barcode)+1, nchar(sequence)), reverse_barcode, method = "hamming")
     reversefound = TRUE
     three_prime_end = substr(sequence, nchar(sequence)-nchar(reverse_barcode)+1, nchar(sequence))
   }
-  return(list(reverse_barcode = reverse_barcode,
+  return(list(reverse_barcode = reverse_barcode_original,
               reverse_distance = reverse_distance,
               three_prime_end = three_prime_end,
               reversefound = reversefound
