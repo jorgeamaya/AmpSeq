@@ -27,7 +27,9 @@ If at any point the previous command doesn't work
 2. Replace <container_name> with the name of the container and run the following command: docker cp <container_name>:Results .
 
 Clearing Docker containers to realese memory: 
+```
 docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q)
 docker container prune; docker image prune; docker volume prune
+```
 
 Rscript /render_report.R -d "/Results/Merge/" -o "/Report/" -p "barcodes_matches.csv" -m 1000 -c 0.5 -mf "Results/missing_files.tsv"

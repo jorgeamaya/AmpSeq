@@ -173,7 +173,7 @@ task ampseq_pipeline {
 		find . -type f	
 		python /Code/Amplicon_TerraPipeline.py --config ~{config_json} --~{type_of_reads} --terra --meta --repo --adaptor_removal --contamination --primer_removal --dada2 --postproc_dada2 --asv_to_cigar
 		find . -type f
-		Rscript /render_report.R -d "/cromwell_root/Results/Merge/" -o "/cromwell_root/Report/" -p ~{path_to_flist} -m ~{minreads_threshold} -c ~{contamination_threshold} -mf "/cromwell_root/Results/missing_files.tsv"
+		Rscript /render_report.R -d "/cromwell_root/Report/Merge/" -o "/cromwell_root/Report/" -p ~{path_to_flist} -m ~{minreads_threshold} -c ~{contamination_threshold} -mf "/cromwell_root/Results/missing_files.tsv"
 		tar -csvf Report_Cards.tar.gz Report
 		find . -type f	
 	else

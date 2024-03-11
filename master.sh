@@ -54,7 +54,8 @@ mv Data/barcodes_matches.csv .
 mv Data/primers_fw.fasta .
 mv Data/primers_rv.fasta .
 
-python Code/Amplicon_TerraPipeline.py --config config.json --mixed_reads --terra --meta --adaptor_removal --contamination #\
+python Code/Amplicon_TerraPipeline.py --config config.json --terra --meta --adaptor_removal --contamination --dada2 #\
+Rscript /render_report.R -d "/Report/Merge/" -o "/Report/" -p "/barcodes_matches.csv" -m 1000 -c 0.5 -mf "/Results/missing_files.tsv"
 
 #python Code/Amplicon_TerraPipeline.py --config config_iSeq.json --mixed_reads \
 #--separate_reads

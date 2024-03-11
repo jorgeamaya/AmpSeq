@@ -47,8 +47,5 @@ COPY master.sh master.sh
 COPY config.json config.json
 COPY render_report.R render_report.R
 RUN chmod 755 master.sh
-COPY barcodes_matches.csv barcodes_matches.csv
-COPY missing_files.tsv missing_files.tsv
-RUN mkdir Report
 COPY ci_report_layouting.Rmd ci_report_layouting.Rmd
 RUN apt-get install -y vim
