@@ -596,19 +596,20 @@ def find_common_subsequences(records):
 	sequences_by_name = {}
 	for record in records:
 		name = record.id
-		sequence = str(record.seq)
-	if name in sequences_by_name:
-		sequences_by_name[name].append(sequence)
-	else:
-		sequences_by_name[name] = [sequence]
-
-	print(sequences_by_name)
+		sequence = str(record.seq)[::-1]
+		if name in sequences_by_name:
+			sequences_by_name[name].append(sequence)
+		else:
+			sequences_by_name[name] = [sequence]
 
 	common_subsequences = {}
 	for name, sequences in sequences_by_name.items():
 		common_subsequences[name] = sequences[0]
-	for seq in sequences[1:]:
-		common_subsequences[name] = ''.join(x for x, y in zip(common_subsequences[name], seq) if x == y)
+		for seq in sequences[1:]:
+			common_subsequences[name] = ''.join(x for x, y in zip(common_subsequences[name], seq) if x == y)
+		tmp = common_subsequences[name][::-1]
+		common_subsequences[name] = tmp
+		print(name + " " + tmp)
 	return common_subsequences
 
 def write_common_subsequences_to_fasta(common_subsequences, output_file):
