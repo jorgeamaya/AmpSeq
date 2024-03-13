@@ -609,7 +609,6 @@ def find_common_subsequences(records):
 			common_subsequences[name] = ''.join(x for x, y in zip(common_subsequences[name], seq) if x == y)
 		tmp = common_subsequences[name][::-1]
 		common_subsequences[name] = tmp
-		print(name + " " + tmp)
 	return common_subsequences
 
 def write_common_subsequences_to_fasta(common_subsequences, output_file):

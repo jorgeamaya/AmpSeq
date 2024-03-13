@@ -184,7 +184,7 @@ if (!no_reference) {
       	hapdist <- asvdf[i,paste0("snv_dist_from_", strains[1])]
       	#tardist = the variant counts Ref Sequence that matches best the ASV
   			tardist <- VariantCounts[c(VariantCounts$id == refid),2]
-   			if (hapdist <= tardist) {
+			if (hapdist <= tardist) {
     			sfil <- "PASS"
   			} else {
     			sfil <- "FAIL"

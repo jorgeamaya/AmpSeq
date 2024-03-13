@@ -56,6 +56,7 @@ def main():
 		path_to_flist = 'barcodes_matches.csv'
 		pr1 = 'primers_fw.fasta'
 		pr2 = 'primers_rv.fasta'
+		path_to_snv = 'snv_filters.txt'
 		if 'pattern_fw' in config_inputs.keys(): pattern_fw = config_inputs['pattern_fw']
 		if 'pattern_rv' in config_inputs.keys(): pattern_rv = config_inputs['pattern_rv']
 		if 'Class' in config_inputs.keys(): Class = config_inputs['Class']
@@ -311,141 +312,141 @@ def main():
 			pattern_fw="*_mixed_op_1.fq.gz", pattern_rv="*_mixed_op_2.fq.gz")
 
 #	#For a set that mixes reads with and without overlap
-#	if args.dada2:
-#		#Run DADA2 on op targets
-#		ad.flush_dir(res_dir, "DADA2_OP", "QProfile")
-#		path_to_meta = os.path.join(res_dir, "PrimerRem", "mixed_op_prim_meta.tsv")
-#		justConcatenate=0	
-#		ad.run_dada2(path_to_meta, path_to_fq, path_to_flist, Class, maxEE, trimRight, minLen, truncQ, matchIDs, max_consist, omegaA, justConcatenate, maxMismatch,saveRdata, res_dir, "DADA2_OP", args.terra)
-#		seqtab_op = os.path.join(res_dir, 'DADA2_OP', 'seqtab.tsv')
-#		bimera_op = os.path.join(res_dir, 'DADA2_OP', 'ASVBimeras.txt')
-#
-#		#Run DADA2 on non-op targets
-#		ad.flush_dir(res_dir, "DADA2_NOP", "QProfile")
-#		path_to_meta = os.path.join(res_dir, "PrimerRem", "mixed_nop_prim_meta.tsv")
-#		justConcatenate=1	
-#		ad.run_dada2(path_to_meta, path_to_fq, path_to_flist, Class, maxEE, trimRight, minLen, truncQ, matchIDs, max_consist, omegaA, justConcatenate, maxMismatch,saveRdata, res_dir, "DADA2_NOP", args.terra)
-#		seqtab_nop = os.path.join(res_dir, 'DADA2_NOP', 'seqtab.tsv')
-#		bimera_nop = os.path.join(res_dir, 'DADA2_NOP', 'ASVBimeras.txt')
-#
-#		#ASV modification block for non-op targets and merge two ASV tables
-#		if os.path.exists("reference_panel_1.fasta"):
-#			if args.terra:
-#				path_to_program = os.path.join("/", "Code/adjustASV.R")
-#			else:
-#				path_to_program = os.path.join("Code/adjustASV.R")
-#			adjASV = ['Rscript', path_to_program, '-s', seqtab_nop, '-ref', "reference_panel_1.fasta",
-#			'-dist', adjust_mode,
-#			'-o', os.path.join(res_dir, 'DADA2_NOP', 'correctedASV.txt')]
-#			print(adjASV)
-#			procASV = subprocess.Popen(adjASV)
-#			procASV.wait()
-#			seqtab_corrected = os.path.join(res_dir, 'DADA2_NOP', 'seqtab_corrected.tsv')
-#			seqtab = ad.merge_seqtab(seqtab_op, seqtab_corrected)
-#			bimera = ad.merge_bimeras(bimera_op, bimera_nop)
-#		else:
-#			print('--reference file not found. skipping ASV correction..')
-#			seqtab = ad.merge_seqtab(seqtab_op, seqtab_nop)
-#			bimera = ad.merge_bimeras(bimera_op, bimera_nop)
-#
-#		seqtab.to_csv(os.path.join(res_dir, 'seqtab.tsv'), sep = "\t", index=False)
-#		bimera.to_csv(os.path.join(res_dir, 'ASVBimeras.txt'), sep = "\t", index=False)
-#
-#	if args.postproc_dada2:		
-#		ad.flush_dir(res_dir, "PostProc_DADA2")
-#		
-#		path_to_seqtab = os.path.join(res_dir, 'seqtab.tsv')
-#
-#		if args.terra:
-#			path_to_program = os.path.join("/", "Code/postProc_dada2.R")
-#		else:
-#			path_to_program = os.path.join("Code/postProc_dada2.R")
-#
-#		postProc = ['Rscript', path_to_program, 
-#				'-s', path_to_seqtab, 
-#				'-b', os.path.join(res_dir, 'ASVBimeras.txt'),
-#				'-snv', os.path.join(path_to_snv),
-#				'--indel_filter', '0.895',
-#				'-o', os.path.join(res_dir, 'PostProc_DADA2', 'ASVTable.txt'),
-#				'--fasta']
-#
-#		if no_ref == 'True':
-#			postProc.extend(['-no_ref'])
-#		else:
-#			postProc.extend(['--reference', "reference_panel_1.fasta", '--strain', strain])
-#			if os.path.exists("reference_panel_2.fasta"):
-#				postProc.extend(['--reference2', "reference_panel_2.fasta", '--strain2', strain2])
-#
-#		print(postProc)
-#		procASV = subprocess.Popen(postProc)
-#		procASV.wait()
-#
-#	#ASV to CIGAR
-#	#Convert ASVs from DADA2 pipeline to pseudo-CIGAR strings.
-#	if args.asv_to_cigar:		
-#		ad.flush_dir(res_dir, "ASV_to_CIGAR", "alingments")
-#
-#		path_to_seqtab = os.path.join(res_dir, 'seqtab.tsv')
-#		path_to_fasta = os.path.join(res_dir, "PostProc_DADA2", "ASVSeqs.fasta") #Fasta file of ASV sequences from DADA2 pipeline"
-#		path_to_table = os.path.join(res_dir, "PostProc_DADA2", "ASVTable.txt") #ASV table from DADA2 pipeline
-#		path_to_out = os.path.join(res_dir, "CIGARVariants_Bfilter.out.tsv") #Output seqtab tsv file with amplicon/variant counts
-#		path_asv_to_cigar = os.path.join(res_dir, "ASV_to_CIGAR", "ASV_to_CIGAR.out.txt") #Output file for ASV -> CIGAR string table 
-#		path_to_amp_db = "reference_panel_1.fasta" #Amplicon sequence fasta file
-#		path_to_alignments = os.path.join(res_dir, "ASV_to_CIGAR", "alingments") #Directory to store ASV alignment files
-#
-#		print(f"INFO: Loading {path_to_amp_db}")
-#		amplicons = ac.parse_amp_db(path_to_amp_db)
-#		if not amplicons:
-#			print(f"ERROR: No amplicons in {path_to_amp_db}")
-#			sys.exit(1)
-#
-#		if os.path.exists("amp_mask.txt"):
-#			print(f"INFO: Loading amp_mask.txt")
-#			mask = ac.parse_dustmasker("amp_mask.txt")
-#		else:
-#			print(f"INFO: No mask data specified.")
-#			mask = {}
-#
-#		print(f"INFO: Loading {path_to_fasta}")
-#		asvs = ac.get_asv_seqs(path_to_fasta)
-#		if not asvs:
-#			print(f"ERROR: No ASV sequences in {path_to_fasta}")
-#			sys.exit(1)
-#
-#		print(f"INFO: Parsing {path_to_table} with total reads >= {min_reads}, samples >= {min_samples}, snv_dist <= {max_snv_dist}, indel_dist <= {max_indel_dist}")
-#
-#		if include_failed:
-#			print("WARNING: Including ASVs that failed post-DADA2 filters! This is not recommended.")
-#		else:
-#			print("INFO: Excluding ASVs that failed post-DADA2 filters.")
-#
-#		if exclude_bimeras:
-#			print("INFO: Excluding ASVs that DADA2 marked as bimeras.")
-#
-#		bins = ac.parse_asv_table(path_to_table, min_reads=min_reads, min_samples=min_samples, max_snv_dist=max_snv_dist, max_indel_dist=max_indel_dist, include_failed=include_failed, exclude_bimeras=exclude_bimeras) #This function only matches to the first strain.
-#		if not bins:
-#			print(f"ERROR: No useable data in {path_to_table}")
-#			sys.exit(1)
-#
-#		print(f"INFO: Writing amplicon fasta files to {path_to_alignments}")
-#		ac.write_amplicon_fastas(asvs, bins, amplicons, outdir=path_to_alignments)
-#
-#		print("INFO: Running MUSCLE aligner on amplicon fasta files. Please wait...")
-#		ac.run_muscle(bins, outdir=path_to_alignments)
-#
-#		print("INFO: Parsing alignments to CIGAR strings")
-#		cigars = ac.parse_alignments(bins, mask=mask, min_homopolymer_length=polyN, outdir=path_to_alignments, verbose=False)
-#		if not cigars:
-#			print("ERROR: could not determine CIGAR strings")
-#			sys.exit(1)
-#
-#		if path_asv_to_cigar:
-#			ac.write_cigar_strings(cigars, path_asv_to_cigar)
-#			print(f"INFO: Wrote ASV->CIGAR table to {path_asv_to_cigar}")
-#
-#		print(f"INFO: Converting DADA2 seqtab file {path_to_seqtab} to {path_to_out}")
-#		if ac.convert_seqtab(path_to_seqtab, cigars, path_to_out):
-#			print("INFO: Completed successfully!")
+	if args.dada2:
+		#Run DADA2 on op targets
+		ad.flush_dir(res_dir, "DADA2_OP", "QProfile")
+		path_to_meta = os.path.join(res_dir, "PrimerRem", "mixed_op_prim_meta.tsv")
+		justConcatenate=0	
+		ad.run_dada2(path_to_meta, path_to_fq, path_to_flist, Class, maxEE, trimRight, minLen, truncQ, matchIDs, max_consist, omegaA, justConcatenate, maxMismatch,saveRdata, res_dir, "DADA2_OP", args.terra)
+		seqtab_op = os.path.join(res_dir, 'DADA2_OP', 'seqtab.tsv')
+		bimera_op = os.path.join(res_dir, 'DADA2_OP', 'ASVBimeras.txt')
+
+		#Run DADA2 on non-op targets
+		ad.flush_dir(res_dir, "DADA2_NOP", "QProfile")
+		path_to_meta = os.path.join(res_dir, "PrimerRem", "mixed_nop_prim_meta.tsv")
+		justConcatenate=1	
+		ad.run_dada2(path_to_meta, path_to_fq, path_to_flist, Class, maxEE, trimRight, minLen, truncQ, matchIDs, max_consist, omegaA, justConcatenate, maxMismatch,saveRdata, res_dir, "DADA2_NOP", args.terra)
+		seqtab_nop = os.path.join(res_dir, 'DADA2_NOP', 'seqtab.tsv')
+		bimera_nop = os.path.join(res_dir, 'DADA2_NOP', 'ASVBimeras.txt')
+
+		#ASV modification block for non-op targets and merge two ASV tables
+		if os.path.exists("reference_panel_1.fasta"):
+			if args.terra:
+				path_to_program = os.path.join("/", "Code/adjustASV.R")
+			else:
+				path_to_program = os.path.join("Code/adjustASV.R")
+			adjASV = ['Rscript', path_to_program, '-s', seqtab_nop, '-ref', "reference_panel_1.fasta",
+			'-dist', adjust_mode,
+			'-o', os.path.join(res_dir, 'DADA2_NOP', 'correctedASV.txt')]
+			print(adjASV)
+			procASV = subprocess.Popen(adjASV)
+			procASV.wait()
+			seqtab_corrected = os.path.join(res_dir, 'DADA2_NOP', 'seqtab_corrected.tsv')
+			seqtab = ad.merge_seqtab(seqtab_op, seqtab_corrected)
+			bimera = ad.merge_bimeras(bimera_op, bimera_nop)
+		else:
+			print('--reference file not found. skipping ASV correction..')
+			seqtab = ad.merge_seqtab(seqtab_op, seqtab_nop)
+			bimera = ad.merge_bimeras(bimera_op, bimera_nop)
+
+		seqtab.to_csv(os.path.join(res_dir, 'seqtab.tsv'), sep = "\t", index=False)
+		bimera.to_csv(os.path.join(res_dir, 'ASVBimeras.txt'), sep = "\t", index=False)
+
+	if args.postproc_dada2:		
+		ad.flush_dir(res_dir, "PostProc_DADA2")
+		
+		path_to_seqtab = os.path.join(res_dir, 'seqtab.tsv')
+
+		if args.terra:
+			path_to_program = os.path.join("/", "Code/postProc_dada2.R")
+		else:
+			path_to_program = os.path.join("Code/postProc_dada2.R")
+
+		postProc = ['Rscript', path_to_program, 
+				'-s', path_to_seqtab, 
+				'-b', os.path.join(res_dir, 'ASVBimeras.txt'),
+				'-snv', os.path.join(path_to_snv),
+				'--indel_filter', '0.895',
+				'-o', os.path.join(res_dir, 'PostProc_DADA2', 'ASVTable.txt'),
+				'--fasta']
+
+		if no_ref == 'True':
+			postProc.extend(['-no_ref'])
+		else:
+			postProc.extend(['--reference', "reference_panel_1.fasta", '--strain', strain])
+			if os.path.exists("reference_panel_2.fasta"):
+				postProc.extend(['--reference2', "reference_panel_2.fasta", '--strain2', strain2])
+
+		print(postProc)
+		procASV = subprocess.Popen(postProc)
+		procASV.wait()
+
+	#ASV to CIGAR
+	#Convert ASVs from DADA2 pipeline to pseudo-CIGAR strings.
+	if args.asv_to_cigar:		
+		ad.flush_dir(res_dir, "ASV_to_CIGAR", "alingments")
+
+		path_to_seqtab = os.path.join(res_dir, 'seqtab.tsv')
+		path_to_fasta = os.path.join(res_dir, "PostProc_DADA2", "ASVSeqs.fasta") #Fasta file of ASV sequences from DADA2 pipeline"
+		path_to_table = os.path.join(res_dir, "PostProc_DADA2", "ASVTable.txt") #ASV table from DADA2 pipeline
+		path_to_out = os.path.join(res_dir, "CIGARVariants_Bfilter.out.tsv") #Output seqtab tsv file with amplicon/variant counts
+		path_asv_to_cigar = os.path.join(res_dir, "ASV_to_CIGAR", "ASV_to_CIGAR.out.txt") #Output file for ASV -> CIGAR string table 
+		path_to_amp_db = "reference_panel_1.fasta" #Amplicon sequence fasta file
+		path_to_alignments = os.path.join(res_dir, "ASV_to_CIGAR", "alingments") #Directory to store ASV alignment files
+
+		print(f"INFO: Loading {path_to_amp_db}")
+		amplicons = ac.parse_amp_db(path_to_amp_db)
+		if not amplicons:
+			print(f"ERROR: No amplicons in {path_to_amp_db}")
+			sys.exit(1)
+
+		if os.path.exists("amp_mask.txt"):
+			print(f"INFO: Loading amp_mask.txt")
+			mask = ac.parse_dustmasker("amp_mask.txt")
+		else:
+			print(f"INFO: No mask data specified.")
+			mask = {}
+
+		print(f"INFO: Loading {path_to_fasta}")
+		asvs = ac.get_asv_seqs(path_to_fasta)
+		if not asvs:
+			print(f"ERROR: No ASV sequences in {path_to_fasta}")
+			sys.exit(1)
+
+		print(f"INFO: Parsing {path_to_table} with total reads >= {min_reads}, samples >= {min_samples}, snv_dist <= {max_snv_dist}, indel_dist <= {max_indel_dist}")
+
+		if include_failed:
+			print("WARNING: Including ASVs that failed post-DADA2 filters! This is not recommended.")
+		else:
+			print("INFO: Excluding ASVs that failed post-DADA2 filters.")
+
+		if exclude_bimeras:
+			print("INFO: Excluding ASVs that DADA2 marked as bimeras.")
+
+		bins = ac.parse_asv_table(path_to_table, min_reads=min_reads, min_samples=min_samples, max_snv_dist=max_snv_dist, max_indel_dist=max_indel_dist, include_failed=include_failed, exclude_bimeras=exclude_bimeras) #This function only matches to the first strain.
+		if not bins:
+			print(f"ERROR: No useable data in {path_to_table}")
+			sys.exit(1)
+
+		print(f"INFO: Writing amplicon fasta files to {path_to_alignments}")
+		ac.write_amplicon_fastas(asvs, bins, amplicons, outdir=path_to_alignments)
+
+		print("INFO: Running MUSCLE aligner on amplicon fasta files. Please wait...")
+		ac.run_muscle(bins, outdir=path_to_alignments)
+
+		print("INFO: Parsing alignments to CIGAR strings")
+		cigars = ac.parse_alignments(bins, mask=mask, min_homopolymer_length=polyN, outdir=path_to_alignments, verbose=False)
+		if not cigars:
+			print("ERROR: could not determine CIGAR strings")
+			sys.exit(1)
+
+		if path_asv_to_cigar:
+			ac.write_cigar_strings(cigars, path_asv_to_cigar)
+			print(f"INFO: Wrote ASV->CIGAR table to {path_asv_to_cigar}")
+
+		print(f"INFO: Converting DADA2 seqtab file {path_to_seqtab} to {path_to_out}")
+		if ac.convert_seqtab(path_to_seqtab, cigars, path_to_out):
+			print("INFO: Completed successfully!")
 		
 if __name__ == "__main__":
 	main()
