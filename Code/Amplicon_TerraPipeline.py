@@ -7,6 +7,7 @@ import json
 import subprocess
 import csv
 import gzip
+import pandas as pd
 
 from Bio import SeqIO
 
@@ -80,6 +81,7 @@ def main():
 		if 'include_failed' in config_inputs.keys(): include_failed = eval(config_inputs['include_failed'])
 		if 'exclude_bimeras' in config_inputs.keys(): exclude_bimeras = eval(config_inputs['exclude_bimeras'])
 		if 'verbose' in config_inputs.keys(): verbose = eval(config_inputs['verbose'])
+		if 'adapter' in config_inputs.keys(): adapter = eval(config_inputs['adapter'])
 
 	### PREPARE OUTPUT DIRECTORIES
 
@@ -150,8 +152,8 @@ def main():
 			slist = sample.split()
 			ad.extract_bbmergefields(slist[0], slist[1], slist[3], path_to_flist, res_dir, rep_dir, "Merge", args.terra)
 
-	#Determine if files must be cleaned from contamination. Note that when running this option, 
-	#the AdaptorRem and the metadata directory will be regenerated with files with no wrong barcodes
+	#Determine if files must be cleaned from contamination. Note that running this protocol will regenerate, 
+	#Fq_Metadata and AdaptorRem.
 	if args.contamination and args.dada2:
 		print("Making files with no contaminating reads")
 		meta = open(os.path.join(res_dir, "Fq_metadata", "rawfilelist.tsv"), 'r')
@@ -188,20 +190,58 @@ def main():
 		meta = open(os.path.join(res_dir, "AdaptorRem", "adaptorrem_meta.tsv"), 'r')
 		samples = meta.readlines()
 		ad.flush_dir(res_dir, "Demultiplex_by_Size")
-		
-		#Get the reads size
-		with gzip.open(samples[0].split()[1], 'rt') as file:
-			next(file)  # skip the first line
-			read_length = len(next(file).strip())
 
-		#Get the size of the reference ASVs		
+		#Get the reads size
+		lengths_fw = []
+		lengths_rv = []
+		for sample in samples:
+			longest_sequence_length_fw = ad.find_longest_sequence_length(sample.split()[1])
+			longest_sequence_length_rv= ad.find_longest_sequence_length(sample.split()[2])
+			lengths_fw.append(longest_sequence_length_fw)
+			lengths_rv.append(longest_sequence_length_rv)
+
+		percentile = lambda lengths: sorted(lengths)[int(len(lengths) * 0.95):]
+		p_fw = percentile(lengths_fw)
+		p_rv = percentile(lengths_rv)
+
+		all_equal_fw = len(set(p_fw)) == 1
+		all_equal_rv = len(set(p_rv)) == 1
+		if all_equal_fw and all_equal_rv:
+			print("Are all values in the top 95% percentile of read size equal?", all_equal_fw and all_equal_rv)
+			read_size_fw = sorted(lengths_fw)[-1]
+			read_size_rv = sorted(lengths_rv)[-1]
+			print("The following values will be used as the standard size of the reads in this run:")
+			print("Forward read:", read_size_fw)
+			print("Reverse read:", read_size_rv)
+			print("If these sizes, do not match the expected size of your technology, consider rerurring the pipeline after manually providing the size of your reads")
+		else:
+			print("Are all values in the top 95% percentile of read size equal?", all_equal_fw and all_equal_rv)
+			print("Largest values found for the forward and reverse read will be used.")
+			read_size_fw = sorted(lengths_fw)[-1]
+			read_size_rv = sorted(lengths_rv)[-1]
+			print("These values are:")
+			print("Forward read:", read_size_fw)
+			print("Reverse read:", read_size_rv)
+			print("If these sizes, do not match the expected size of your technology, consider rerurring the pipeline after manually providing the size of your reads")
+		#Get and remove the adapter sequence
+		if adapter is None:
+			adapter_fw = ad.find_common_subsequence(pr1)
+			adapter_rv = ad.find_common_subsequence(pr2)
+		else:
+			adapter_fw = adapter
+			adapter_rv = adapter
+		print("Adapter forward:", adapter_fw)
+		print("Adapter reverse:", adapter_rv)
+		ad.remove_adapter(pr1, adapter_fw, 'primer_fw_no_adapter.fasta')
+		ad.remove_adapter(pr2, adapter_rv, 'primer_rv_no_adapter.fasta')
+
+		#Get the size of the reference ASVs
 		if os.path.exists("reference_panel_1.fasta"):
 			ref_files = ["reference_panel_1.fasta"]
 			if os.path.exists("reference_panel_2.fasta"):
 				ref_files.append("reference_panel_2.fasta")
 		else:
 			sys.exit('At the least one reference is necessary to separate reads according to ASV target size.')
-
 		asv_lengths = {}
 		for ref_file in ref_files:
 			for record in SeqIO.parse(ref_file, "fasta"):
@@ -219,71 +259,59 @@ def main():
 
 		for sample in samples:
 			slist = sample.split()
-			ad.demultiplex_per_size(slist[0], slist[1], slist[2], pr1, pr2, res_dir, "Demultiplex_by_Size", read_length, asv_lengths)
-			
+			ad.demultiplex_per_size(slist[0], slist[1], slist[2], 'primer_fw_no_adapter.fasta', 'primer_rv_no_adapter.fasta', res_dir, "Demultiplex_by_Size", read_size_fw, read_size_rv, asv_lengths)
+		
+		#Create Metafile for reads with no overlap
+		ad.create_meta(os.path.join(res_dir, "Demultiplex_by_Size"), res_dir, "Demultiplex_by_Size", "demux_nop_meta.tsv",
+			pattern_fw="*_nop_L001_R1_001.fastq.gz", pattern_rv="*_nop_L001_R2_001.fastq.gz")
+		ad.create_meta(os.path.join(res_dir, "Demultiplex_by_Size"), res_dir, "Demultiplex_by_Size", "demux_op_meta.tsv",
+			pattern_fw="*_op_L001_R1_001.fastq.gz", pattern_rv="*_op_L001_R2_001.fastq.gz")
+
 	#Remove primers
 	#For a set where all reads have overlap
-	if args.overlap_reads and args.primer_removal:
+	if args.primer_removal:
+		#Extract primer for the target without amplicons
+		# Read input fasta file
+		if args.contamination:
+			fw = 'primer_fw_no_adapter.fasta'
+			rv = 'primer_rv_no_adapter.fasta'
+		else:
+			fw = 'primers_fw.fasta'
+			rv = 'primers_rv.fasta'
+			
+		records_fw = SeqIO.parse(fw, 'fasta')
+		common_subsequences = ad.find_common_subsequences(records_fw)
+		ad.write_common_subsequences_to_fasta(common_subsequences, 'amp_primer_fw.fasta')
+		records_rv = SeqIO.parse(rv, 'fasta')
+		common_subsequences = ad.find_common_subsequences(records_rv)
+		ad.write_common_subsequences_to_fasta(common_subsequences, 'amp_primer_rv.fasta')
+
 		ad.flush_dir(res_dir, "PrimerRem")
-		meta = open(os.path.join(res_dir, "AdaptorRem", "adaptorrem_meta.tsv"), 'r')
+
+		#Trim primers off non-overlapping targets
+		meta = open(os.path.join(res_dir, "Demultiplex_by_Size", "demux_nop_meta.tsv"), 'r')
 		samples = meta.readlines()
-		
 		for sample in samples:
 			slist = sample.split()
-			ad.trim_primer(slist[0], slist[1], slist[2], res_dir, "PrimerRem", pr1, pr2, "prim")
+			ad.trim_primer(slist[0], slist[1], slist[2], res_dir, "PrimerRem", "amp_primer_fw.fasta", "amp_primer_rv.fasta", "mixed_nop")
 
-		ad.create_meta(os.path.join(res_dir,"PrimerRem"), res_dir, "PrimerRem", "primrem_meta.tsv",
-			pattern_fw="*_prim_1.fq.gz", pattern_rv="*_prim_2.fq.gz")
+		#Metafile for trimmed non-op target reads
+		ad.create_meta(os.path.join(res_dir, "PrimerRem"), res_dir, "PrimerRem", "mixed_nop_prim_meta.tsv", 
+			pattern_fw="*_mixed_nop_1.fq.gz", pattern_rv="*_mixed_nop_2.fq.gz")
 
-	#For a set that mixes reads with and without overlap
-	if args.mixed_reads and args.primer_removal:
-		ad.flush_dir(res_dir, "PrimerRem")
-		meta = open(os.path.join(res_dir, "AdaptorRem", "adaptorrem_meta.tsv"), 'r')
-
-		#Trim primers off Overlapping short targets and demux them to a different file
+		#Trim primers off overlapping targets
+		meta = open(os.path.join(res_dir, "Demultiplex_by_Size", "demux_op_meta.tsv"), 'r')
 		samples = meta.readlines()
 		for sample in samples:
 			slist = sample.split()
-			ad.trim_primer(slist[0], slist[1], slist[2], res_dir, "PrimerRem", overlap_pr1, overlap_pr2, "mixed_op", True)
+			ad.trim_primer(slist[0], slist[1], slist[2], res_dir, "PrimerRem", "amp_primer_fw.fasta", "amp_primer_rv.fasta", "mixed_op")
 
 		#Metafile for trimmed overlapping target reads
 		ad.create_meta(os.path.join(res_dir, "PrimerRem"), res_dir, "PrimerRem", "mixed_op_prim_meta.tsv",
 			pattern_fw="*_mixed_op_1.fq.gz", pattern_rv="*_mixed_op_2.fq.gz")
 
-		#Metafile for un-trimmed non-op target reads
-		ad.create_meta(os.path.join(res_dir, "PrimerRem"), res_dir, "PrimerRem", "mixed_temp_meta.tsv",
-			pattern_fw="*_temp_1.fq.gz", pattern_rv="*_temp_2.fq.gz")
-		temp_meta = open(os.path.join(res_dir, "PrimerRem", "mixed_temp_meta.tsv"), 'r')
-
-		#Trim primers off second subset of non-op long targets 
-		samples = temp_meta.readlines()	
-		for sample in samples:
-			slist = sample.split()
-			ad.trim_primer(slist[0], slist[1], slist[2], res_dir, "PrimerRem", pr1, pr2, "mixed_nop")
-
-		#Metafile for trimmed non-op target reads
-		ad.create_meta(os.path.join(res_dir, "PrimerRem"), res_dir, "PrimerRem", "mixed_nop_prim_meta.tsv", 
-			pattern_fw="*_mixed_nop_1.fq.gz", pattern_rv="*_mixed_nop_2.fq.gz")
-		temp_meta.close()
-
-	#Perform denoising with DADA2
-	#For a set where all reads have overlap
-	if args.overlap_reads and args.dada2:
-		ad.flush_dir(res_dir, "DADA2", "QProfile")
-		path_to_meta = os.path.join(res_dir, "PrimerRem", "primrem_meta.tsv")
-		ad.run_dada2(path_to_meta, path_to_fq, path_to_flist, Class, maxEE, trimRight, minLen, truncQ, matchIDs, max_consist, omegaA, justConcatenate, maxMismatch, saveRdata, res_dir, "DADA2", args.terra)
-		cmd = ['cp', os.path.join(res_dir, 'DADA2', 'seqtab.tsv'), 
-			os.path.join(res_dir, '.'), 
-			'\\', 
-			'cp', os.path.join(res_dir, 'DADA2', 'ASVBimeras.txt'),
-                        os.path.join(res_dir, '.')
-			]
-
-		proccp = subprocess.Popen(cmd)
-		proccp.wait()
-
 	#For a set that mixes reads with and without overlap
-	if args.mixed_reads and args.dada2:
+	if args.dada2:
 		#Run DADA2 on op targets
 		ad.flush_dir(res_dir, "DADA2_OP", "QProfile")
 		path_to_meta = os.path.join(res_dir, "PrimerRem", "mixed_op_prim_meta.tsv")

@@ -118,14 +118,12 @@ def adaptor_rem(sampleid, fileF, fileR, res_dir, subdir, qvalue = 5, length = 20
 	"""
 
 	if os.path.isfile(fileF) and os.path.isfile(fileR):
-
 		output_dir = os.path.join(res_dir, subdir)
 		cmd = ['trim_galore', '--paired', '--gzip', '--quality', f'{qvalue}', '--length', 
 		f'{length}', '--output_dir', f'{output_dir}', '--basename', f'{sampleid}', f'{fileF}', 
 		f'{fileR}']
 		proc = subprocess.Popen(cmd)
 		proc.wait()
-
 	else:
 		sys.exit('Adaptor Removal halted : one or both of the fastq files not found! Exiting...')
 	return()
@@ -459,71 +457,161 @@ def hamming_distance(str1, str2):
 			distance += 1
 	return distance
 
-def demultiplex_per_size(sampleid, fileF, fileR, pr1, pr2, res_dir, subdir, read_length, asv_lengths, mismatches = 2):
+#SEPARATE READS FOR CONTATENATION OR MERGING
+#Find the adapter
+def find_common_subsequence(fasta_file):
+    #The adapter must be the common subsequence to all sequences in the primer file
+    sequences = [str(record.seq) for record in SeqIO.parse(fasta_file, "fasta")]
+    shortest_sequence = min(sequences, key=len)
+    starting_length = len(shortest_sequence)
+    # Iterate over other sequences to find common subsequence
+    for sequence in sequences:
+        common_subsequence = []
+        for char_shortest, char_sequence in zip(shortest_sequence, sequence):
+            if char_shortest == char_sequence:
+                common_subsequence.append(char_shortest)
+            else:
+                break
+        shortest_sequence = "".join(common_subsequence)
+
+    if len(shortest_sequence) == starting_length:
+        sys.exit('All sequences in the primer file are the same and the adapter cannot be determined.\nCheck your primer file or manually provide the adapter sequence.')
+    else:
+        return shortest_sequence
+
+def find_longest_sequence_length(fastq_file):
+    max_length = 0
+    with gzip.open(fastq_file, 'rt') as file:
+        lines = file.readlines()
+        for i in range(1, len(lines), 4):
+            sequence_length = len(lines[i].strip())
+            if sequence_length > max_length:
+                max_length = sequence_length
+    return max_length
+
+def remove_adapter(fasta_file, sequence_to_remove, output_file):
+    with open(fasta_file, 'r') as input_file, open(output_file, 'w') as output_file:
+        current_sequence = ''
+        current_header = ''
+
+        for line in input_file:
+            if line.startswith('>'):
+                if current_sequence:
+                    modified_sequence = current_sequence.replace(sequence_to_remove, '')
+                    output_file.write(f"{current_header}\n{modified_sequence}\n")
+
+                current_header = line.strip()
+                current_sequence = ''
+            else:
+                current_sequence += line.strip()
+
+        if current_sequence:
+            modified_sequence = current_sequence.replace(sequence_to_remove, '')
+            output_file.write(f"{current_header}\n{modified_sequence}\n")
+
+def demultiplex_per_size(sampleid, fileF, fileR, pr1, pr2, res_dir, subdir, read_size_fw, read_size_rv, asv_lengths, mismatches = 2):
 	#Retrieve Primer
-	primer_dict = {}
+	primer_dict_fw = {}
+	counter = 1
+	with open(pr1, 'r') as forward_fasta:
+		for forward_record in SeqIO.parse(forward_fasta, 'fasta'): 
+			#Names in the dictionary have to be dismabiguated to avoid dict rewrite.
+			padded_name = "_".join([forward_record.id, str(counter)])
+			primer_dict_fw[padded_name] = forward_record.seq
+			counter += 1
 
-	output_fastq_fw_nop = os.path.join(res_dir, subdir, sampleid, "_nop_L001_R1_001.fastq")
-	output_fastq_rv_nop = os.path.join(res_dir, subdir, sampleid, "_nop_L001_R2_001.fastq")
-	output_fastq_fw_op = os.path.join(res_dir, subdir, sampleid, "_op_L001_R1_001.fastq")
-	output_fastq_rv_op = os.path.join(res_dir, subdir, sampleid, "_op_L001_R2_001.fastq")
-
-	with open(pr1, 'r') as forward_fasta, open(pr2, 'r') as reverse_fasta:
-		for forward_record, reverse_record in zip(SeqIO.parse(forward_fasta, 'fasta'), SeqIO.parse(reverse_fasta, 'fasta')):
-			if forward_record.id == reverse_record.id:
-				primer_dict[forward_record.id] = {forward_record.seq, reverse_record.seq}
+	primer_dict_rv = {}
+	counter = 1
+	with open(pr2, 'r') as reverse_fasta:
+		for reverse_record in SeqIO.parse(reverse_fasta, 'fasta'):
+			#Names in the dictionary have to be dismabiguated to avoid dict rewrite.
+			padded_name = "_".join([reverse_record.id, str(counter)])
+			primer_dict_rv[padded_name] = reverse_record.seq
+			counter += 1
+	print(sampleid)
+    
+	output_fastq_fw_nop = os.path.join(res_dir, subdir, "".join([sampleid, "_nop_L001_R1_001.fastq"]))
+	output_fastq_rv_nop = os.path.join(res_dir, subdir, "".join([sampleid, "_nop_L001_R2_001.fastq"]))
+	output_fastq_fw_op = os.path.join(res_dir, subdir, "".join([sampleid, "_op_L001_R1_001.fastq"]))
+	output_fastq_rv_op = os.path.join(res_dir, subdir, "".join([sampleid, "_op_L001_R2_001.fastq"]))
 
 	with gzip.open(os.path.join("Fastq", fileF), 'rt') as forward_fastq, gzip.open(os.path.join("Fastq", fileR), 'rt') as reverse_fastq:
-		for forward_record in SeqIO.parse(forward_fastq, 'fastq'):
-			print(sampleid + " " + forward_record.id)
-			print(forward_record.seq)
-			print(len(forward_record.seq))
-#		for forward_record, reverse_record in zip(SeqIO.parse(forward_fastq, 'fastq'), SeqIO.parse(reverse_fastq, 'fastq')):
-#			for asv, primers in primer_dict.items():
-#				primer_fw, primer_rv = primers
-#				len_fw = len(primer_fw)
-#				len_rv = len(primer_rv)
-#				print(sampleid + " " + forward_record.id)
-#				print("primer_fw: " + primer_fw)
-#				print("forward_record.seq: " + forward_record.seq)
-#				print("forward_record.seq[:len_fw]: " + forward_record.seq[:len_fw])
-#				print("primer_rv: " + primer_rv)
-#				print("reverse_record.seq: " + reverse_record.seq)
-#				print("reverse_record.seq[:len_rv]: " + reverse_record.seq[:len_rv])
+		for forward_record, reverse_record in zip(SeqIO.parse(forward_fastq, 'fastq'), SeqIO.parse(reverse_fastq, 'fastq')):
+			for key_fw, primer_fw in primer_dict_fw.items():
+				for key_rv, primer_rv in primer_dict_rv.items():
+					#Unpad name
+					key_fw_n = key_fw.split('_')[0]
+					key_rv_n = key_rv.split('_')[0]
+					if key_fw_n == key_rv_n:
+						#Obtain the sequences that match by primer
+						len_fw = len(primer_fw)
+						len_rv = len(primer_rv)
 
-#				hamming_distance_fw = hamming_distance(primer_fw, str(forward_record.seq[:len_fw]))
-#				hamming_distance_rv = hamming_distance(primer_rv, str(reverse_record.seq[:len_rv]))
-#
-#				forward_read_len_no_primer = len(forward_record.seq) - len_fw
-#				reverse_read_len_no_primer = len(reverse_record.seq) - len_rv
-#				usable_read_length = forward_read_len_no_primer + reverse_read_len_no_primer				
+						forward_read_len_no_primer = len(forward_record.seq) - len_fw
+						reverse_read_len_no_primer = len(reverse_record.seq) - len_rv
+						usable_read_length = forward_read_len_no_primer + reverse_read_len_no_primer
 
-#				if hamming_distance_fw <= mismatches and hamming_distance_rv <= mismatches:
-#					if asv_lengths[asv] > usable_read_length:
-#						#Store reads with absolute no overlap
-#						with open(output_fastq_fw_nop, 'a') as output_file:
-#							SeqIO.write(forward_record, output_file, 'fastq')
-#						with open(output_fastq_rv_nop, 'a') as output_file:
-#							SeqIO.write(reverse_record, output_file, 'fastq')
-#						break
-#					elif asv_lengths[asv] > usable_read_length - 10:
-#						#Store reads with at least 10bp overlap
-#						with open(output_fastq_fw_op, 'a') as output_file:
-#							SeqIO.write(forward_record, output_file, 'fastq')
-#						with open(output_fastq_rv_op, 'a') as output_file:
-#							SeqIO.write(reverse_record, output_file, 'fastq')
-#						break
-#					else:
-#						#Clip and store reads with intermediate overlap (between 1 and 10bps)
-#						forward_record.seq = forward_record.seq[:-10]
-#						reverse_record.seq = reverse_record.seq[:-10]
-#						with open(output_fastq_fw_nop, 'a') as output_file:
-#							SeqIO.write(forward_record, output_file, 'fastq')
-#						with open(output_fastq_rv_nop, 'a') as output_file:
-#							SeqIO.write(reverse_record, output_file, 'fastq')
-#						break
+						#Trimgalore clips 3' ends of bad quality, which sometimes makes the record.seq shorter than the primer.
+						#In such cases, the hamming distance will fail.
+						if forward_read_len_no_primer > 0 and reverse_read_len_no_primer > 0:
+							hamming_distance_fw = hamming_distance(primer_fw, str(forward_record.seq[:len_fw]))
+							hamming_distance_rv = hamming_distance(primer_rv, str(reverse_record.seq[:len_rv]))
+						if hamming_distance_fw <= mismatches and hamming_distance_rv <= mismatches:
+							if asv_lengths[key_fw_n] < usable_read_length - 20:
+								#Store reads with at least 10bp overlap
+								with open(output_fastq_fw_op, 'a') as output_file:
+									SeqIO.write(forward_record, output_file, 'fastq')
+								with open(output_fastq_rv_op, 'a') as output_file:
+									SeqIO.write(reverse_record, output_file, 'fastq')
+									break
+							elif asv_lengths[key_fw_n] > usable_read_length:
+								#Store reads with absolute no overlap
+								with open(output_fastq_fw_nop, 'a') as output_file:
+									SeqIO.write(forward_record, output_file, 'fastq')
+								with open(output_fastq_rv_nop, 'a') as output_file:
+									SeqIO.write(reverse_record, output_file, 'fastq')
+									break
+							else:
+								#Clip and store reads with intermediate overlap (between 1 and 10bps)
+								seq_fw_tmp = forward_record.seq[:-10]
+								seq_rv_tmp = reverse_record.seq[:-10]
+								forward_record_modified = forward_record.__class__(seq_fw_tmp, id=forward_record.id, description=forward_record.description)
+								reverse_record_modified = reverse_record.__class__(seq_rv_tmp, id=reverse_record.id, description=reverse_record.description)
+								forward_record_modified.letter_annotations["phred_quality"] = forward_record.letter_annotations["phred_quality"][:-10]
+								reverse_record_modified.letter_annotations["phred_quality"] = reverse_record.letter_annotations["phred_quality"][:-10]
+								# Write the modified sequences to output files
+								with open(output_fastq_fw_nop, 'a') as output_file:
+									SeqIO.write(forward_record_modified, output_file, 'fastq')
+								with open(output_fastq_rv_nop, 'a') as output_file:
+									SeqIO.write(reverse_record_modified, output_file, 'fastq')
+								break
+	if os.path.exists(output_fastq_fw_nop) and os.path.exists(output_fastq_rv_nop):
+		gzip_file(output_fastq_fw_nop, output_fastq_fw_nop + ".gz")
+		gzip_file(output_fastq_rv_nop, output_fastq_rv_nop + ".gz")
+	if os.path.exists(output_fastq_fw_op) and os.path.exists(output_fastq_rv_op):
+		gzip_file(output_fastq_fw_op, output_fastq_fw_op + ".gz")
+		gzip_file(output_fastq_rv_op, output_fastq_rv_op + ".gz")	
 
-#	gzip_file(output_fastq_fw_nop, output_fastq_fw_nop + ".gz")
-#	gzip_file(output_fastq_rv_nop, output_fastq_rv_nop + ".gz")
-#	gzip_file(output_fastq_fw_op, output_fastq_fw_op + ".gz")
-#	gzip_file(output_fastq_fw_op, output_fastq_fw_op + ".gz")	
+def find_common_subsequences(records):
+	sequences_by_name = {}
+	for record in records:
+		name = record.id
+		sequence = str(record.seq)
+	if name in sequences_by_name:
+		sequences_by_name[name].append(sequence)
+	else:
+		sequences_by_name[name] = [sequence]
+
+	print(sequences_by_name)
+
+	common_subsequences = {}
+	for name, sequences in sequences_by_name.items():
+		common_subsequences[name] = sequences[0]
+	for seq in sequences[1:]:
+		common_subsequences[name] = ''.join(x for x, y in zip(common_subsequences[name], seq) if x == y)
+	return common_subsequences
+
+def write_common_subsequences_to_fasta(common_subsequences, output_file):
+	with open(output_file, 'w') as out_fasta:
+		for name, sequence in common_subsequences.items():
+			out_fasta.write(f'>{name}\n{sequence}\n')

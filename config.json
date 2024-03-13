@@ -38,5 +38,6 @@
 	"include_failed" : "False",
 	"exclude_bimeras" : "False",
 	"amp_mask" : "None",
-	"verbose" : "False"
+	"verbose" : "False",
+	"adapter" : "None"
 }
