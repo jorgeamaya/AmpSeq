@@ -151,10 +151,9 @@ task ampseq_pipeline {
 	#Move reference files to the main level
 	mv fq_dir/barcodes_matches.csv .
 	mv fq_dir/primers_*.fasta .
-	mv fq_dir/snv_filters.txt .
-	
-	if [ -f fq_dir/*ref_1.fasta ]; then mv fq_dir/*ref_1.fasta reference_panel_1.fasta ; fi
-	if [ -f fq_dir/*ref_2.fasta ]; then mv fq_dir/*ref_2.fasta reference_panel_2.fasta ; fi
+	mv fq_dir/snv_filters.txt .	
+	mv fq_dir/*ref1.fasta reference_panel_1.fasta
+	mv fq_dir/*ref2.fasta reference_panel_2.fasta
 	
 	# Check if the first line in barcodes_matches.csv indicates the presence of inline barcodes
 	if grep -q "," barcodes_matches.csv ; then
