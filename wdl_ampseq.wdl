@@ -169,10 +169,11 @@ task ampseq_pipeline {
 	# Read the first line of the file
 	first_line=$(head -n 1 "barcodes_matches.csv")
 
-	echo "${first_line}"
+	#echo "${first_line}"
 
 	# Check if the first line matches the expected pattern
-	if [[ $first_line =~ ^sample_id,Forward,Reverse ]]; then
+	#if [[ $first_line =~ ^sample_id,Forward,Reverse ]]; then
+	if grep -q "," barcodes_matches.csv ; then
 		echo "Sequencing run with inline barcodes. Performing analysis of combinatorial indices followed by denoising"
 		find . -type f
 		python /Code/Amplicon_TerraPipeline.py --config ~{config_json} --terra --meta --adaptor_removal --contamination --separate_reads --primer_removal --dada2 --postproc_dada2 --asv_to_cigar
