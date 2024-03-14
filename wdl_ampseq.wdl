@@ -163,8 +163,8 @@ task ampseq_pipeline {
 	mv fq_dir/primers_*.fasta .
 	mv fq_dir/snv_filters.txt .
 	
-	if [ -f fq_dir/*ref_1.fasta ]; then mv fq_dir/reference_panel_1.fasta .; fi
-	if [ -f fq_dir/*ref_2.fasta ]; then mv fq_dir/reference_panel_2.fasta .; fi
+	if [ -f fq_dir/*ref_1.fasta ]; then mv fq_dir/*ref_1.fasta reference_panel_1.fasta ; fi
+	if [ -f fq_dir/*ref_2.fasta ]; then mv fq_dir/*ref_2.fasta reference_panel_2.fasta ; fi
 	
 	# Read the first line of the file
 	first_line=$(head -n 1 "barcodes_matches.csv")
