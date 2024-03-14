@@ -172,7 +172,7 @@ task ampseq_pipeline {
 	echo "${first_line}"
 
 	# Check if the first line matches the expected pattern
-	if [ "${first_line}" == "sample_id,Forward,Reverse" ]; then
+	if [[ "${first_line}" =~ ^sample_id,Forward,Reverse ]]; then
 		echo "Sequencing run with inline barcodes. Performing analysis of combinatorial indices followed by denoising"
 		find . -type f
 		python /Code/Amplicon_TerraPipeline.py --config ~{config_json} --terra --meta --adaptor_removal --contamination --separate_reads --primer_removal --dada2 --postproc_dada2 --asv_to_cigar
