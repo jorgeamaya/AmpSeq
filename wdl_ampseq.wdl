@@ -154,15 +154,13 @@ task ampseq_pipeline {
 	mv fq_dir/snv_filters.txt .	
 	mv fq_dir/*ref1.fasta reference_panel_1.fasta
 	mv fq_dir/*ref2.fasta reference_panel_2.fasta
-	mv Code/render_report.R .
-	mv Code/ci_report_layouting.Rmd . 
 	
 	# Check if the first line in barcodes_matches.csv indicates the presence of inline barcodes
 	if grep -q "," barcodes_matches.csv ; then
 		echo "Sequencing run with inline barcodes. Performing analysis of combinatorial indices followed by denoising"
 		find . -type f
 		python /Code/Amplicon_TerraPipeline.py --config ~{config_json} --terra --meta --adaptor_removal --contamination --separate_reads --primer_removal --dada2 --postproc_dada2 --asv_to_cigar
-		Rscript /render_report.R -d "/Report/Merge/" -o "/Report/" -p "/barcodes_matches.csv" -m 1000 -c 0.5 -mf "/Results/missing_files.tsv"
+		Rscript /Code/render_report.R -d "/Report/Merge/" -o "/Report/" -p "/barcodes_matches.csv" -m 1000 -c 0.5 -mf "/Results/missing_files.tsv"
 		tar -csvf Report_Cards.tar.gz Report
 		find . -type f
 	else

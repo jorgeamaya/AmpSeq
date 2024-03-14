@@ -17,7 +17,7 @@ args <- parser$parse_args()
 print(args)
 
 # Assign variables based on command-line arguments
-render("/ci_report_layouting.Rmd", params = list(
+render("/Code/ci_report_layouting.Rmd", params = list(
   data_dir = args$data_dir,
   out_dir = args$out_dir,
   path_to_flist = args$path_to_flist,
