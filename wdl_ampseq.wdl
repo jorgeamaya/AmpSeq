@@ -30,6 +30,7 @@ workflow ampseq {
 		String max_indel_dist = "-1"
 		String include_failed = "False"
 		String exclude_bimeras = "False"
+		String adapter = "None"
 
 		#Command for the decontamination pipeline
 		Int minreads_threshold = 1000
@@ -76,7 +77,8 @@ workflow ampseq {
 			exclude_bimeras = exclude_bimeras,
 			minreads_threshold = minreads_threshold,
 			contamination_threshold = contamination_threshold,
-			verbose = verbose
+			verbose = verbose,
+			adapter = adapter
 	}
 }
 
@@ -110,6 +112,7 @@ task ampseq_pipeline {
 		Int minreads_threshold = 1000
 		Float contamination_threshold = 0.5
 		String verbose = "False"
+		String adapter = "None"
 	}
 
 	Map[String, String] in_map = {
@@ -141,6 +144,7 @@ task ampseq_pipeline {
 		"minreads_threshold": minreads_threshold,
 		"contamination_threshold": contamination_threshold,
 		"verbose": verbose,
+		"adapter": adapter,
 		"path_to_flist": 'barcodes_matches.csv',
 		"pr1": 'primers_fw.fasta',
 		"pr2": 'primers_rv.fasta'
