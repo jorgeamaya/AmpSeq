@@ -169,6 +169,8 @@ task ampseq_pipeline {
 	# Read the first line of the file
 	first_line=$(head -n 1 "barcodes_matches.csv")
 
+	echo "~{first_line}"
+
 	# Check if the first line matches the expected pattern
 	if [ "$first_line" = "sample_id,Forward,Reverse" ]; then
 		echo "Sequencing run with inline barcodes. Performing analysis of combinatorial indices followed by denoising"
