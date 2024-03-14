@@ -393,14 +393,16 @@ def extract_bbmergefields(sampleid, mergefile, bbreportfile, path_to_flist, res_
 
 		if terra:
 			platform = '--terra'
-
-		cmd = ['Rscript', os.path.join('Code/runBBMergecontamination.R'),
-		'-p', f'{mergefile}',
-		'-d', os.path.join(rep_dir, subdir),
-		'-b', path_to_flist]
-
-		if terra:
+			cmd = ['Rscript', os.path.join('/Code/runBBMergecontamination.R'),
+			'-p', f'{mergefile}',
+			'-d', os.path.join(rep_dir, subdir),
+			'-b', path_to_flist]
 			cmd.append(f'{platform}')
+		else:		
+			cmd = ['Rscript', os.path.join('/Code/runBBMergecontamination.R'),
+			'-p', f'{mergefile}',
+			'-d', os.path.join(rep_dir, subdir),
+			'-b', path_to_flist]
 
 		print(cmd)
 		proc = subprocess.Popen(cmd)
