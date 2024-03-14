@@ -57,10 +57,8 @@ mv Data/pf3d7_ref_updated_v4_ref1.fasta reference_panel_1.fasta
 mv Data/pfdd2_ref_updated_v3_ref2.fasta reference_panel_2.fasta
 mv Data/snv_filters.txt .
 
-python Code/Amplicon_TerraPipeline.py --config config.json --terra --meta --adaptor_removal --contamination --dada2
-#Rscript /render_report.R -d "/Report/Merge/" -o "/Report/" -p "/barcodes_matches.csv" -m 1000 -c 0.5 -mf "/Results/missing_files.tsv"
-
-python Code/Amplicon_TerraPipeline.py --config config.json --terra --separate_reads --primer_removal --dada2 --postproc_dada2 --asv_to_cigar
+python Code/Amplicon_TerraPipeline.py --config config.json --terra --meta --adaptor_removal --contamination --separate_reads --primer_removal --dada2 --postproc_dada2 --asv_to_cigar
+Rscript /render_report.R -d "/Report/Merge/" -o "/Report/" -p "/barcodes_matches.csv" -m 1000 -c 0.5 -mf "/Results/missing_files.tsv"
 
 #Tested
 #python Code/Amplicon_TerraPipeline.py --config config_iSeq.json --mixed_reads \
