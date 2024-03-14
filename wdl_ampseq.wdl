@@ -169,13 +169,13 @@ task ampseq_pipeline {
 	if [ "$first_line" = "sample_id,Forward,Reverse" ]; then
 		echo "Sequencing run with inline barcodes. Performing analysis of combinatorial indices followed by denoising"
 		find . -type f		
-		python Code/Amplicon_TerraPipeline.py --config config.json --terra --meta --adaptor_removal --contamination --separate_reads --primer_removal --dada2 --postproc_dada2 --asv_to_cigar
+		python /Code/Amplicon_TerraPipeline.py --config config.json --terra --meta --adaptor_removal --contamination --separate_reads --primer_removal --dada2 --postproc_dada2 --asv_to_cigar
 		Rscript /render_report.R -d "/Report/Merge/" -o "/Report/" -p "/barcodes_matches.csv" -m 1000 -c 0.5 -mf "/Results/missing_files.tsv"
 		tar -csvf Report_Cards.tar.gz Report
 		find . -type f	
 	else
 		echo "Sequencing run without inline barcodes. Skipping analysis of combinatorial indices and performing only denoising"
-		python Code/Amplicon_TerraPipeline.py --config config.json --terra --meta --adaptor_removal --separate_reads --primer_removal --dada2 --postproc_dada2 --asv_to_cigar
+		python /Code/Amplicon_TerraPipeline.py --config config.json --terra --meta --adaptor_removal --separate_reads --primer_removal --dada2 --postproc_dada2 --asv_to_cigar
 	fi
 	
 	>>>
