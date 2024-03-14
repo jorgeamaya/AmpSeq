@@ -157,7 +157,6 @@ task ampseq_pipeline {
 	#Move reference files to the main level
 	mv fq_dir/barcodes_matches.csv .
 	mv fq_dir/primers_*.fasta .
-	mv fq_dir/*_ref_* .
 	
 	if [ -f "fq_dir/snv_filters.txt" ]; then mv "snv_filters.txt" .; fi
 	if [ -f "fq_dir/*ref_1.fasta" ]; then mv "reference_panel_1.fasta" .; fi
