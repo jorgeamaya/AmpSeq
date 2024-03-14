@@ -36,16 +36,6 @@ workflow ampseq {
 		Int minreads_threshold = 1000
 		Float contamination_threshold = 0.5
 		String verbose = "False"		
-
-#		String type_of_reads
-#		File path_to_flist
-#		File pr1
-#		File pr2
-#		File overlap_pr1
-#		File overlap_pr2
-#		File path_to_snv
-#		File reference
-#		File reference2
 	}
 
 	call ampseq_pipeline {
@@ -166,13 +156,7 @@ task ampseq_pipeline {
 	if [ -f fq_dir/*ref_1.fasta ]; then mv fq_dir/*ref_1.fasta reference_panel_1.fasta ; fi
 	if [ -f fq_dir/*ref_2.fasta ]; then mv fq_dir/*ref_2.fasta reference_panel_2.fasta ; fi
 	
-	# Read the first line of the file
-	first_line=$(head -n 1 "barcodes_matches.csv")
-
-	#echo "${first_line}"
-
-	# Check if the first line matches the expected pattern
-	#if [[ $first_line =~ ^sample_id,Forward,Reverse ]]; then
+	# Check if the first line in barcodes_matches.csv indicates the presence of inline barcodes
 	if grep -q "," barcodes_matches.csv ; then
 		echo "Sequencing run with inline barcodes. Performing analysis of combinatorial indices followed by denoising"
 		find . -type f
@@ -184,8 +168,7 @@ task ampseq_pipeline {
 		echo "Sequencing run without inline barcodes. Skipping analysis of combinatorial indices and performing only denoising"
 		find . -type f
 		python /Code/Amplicon_TerraPipeline.py --config ~{config_json} --terra --meta --adaptor_removal --separate_reads --primer_removal --dada2 --postproc_dada2 --asv_to_cigar
-	fi
-	
+	fi	
 	>>>
 	output {
 		File? ASVBimeras = "Results/ASVBimeras.txt"
