@@ -166,9 +166,6 @@ for (file in file_list) {
   df <- rbind(df, data)           # append data frame to df
 }
 
-```
-
-```{r 'Suspected error', echo=FALSE, results='hide'}
 barcodes_list = read.csv(path_to_flist, sep = ",", header = TRUE)
 samples_order = as.character(barcodes_list$sample_id)
 
