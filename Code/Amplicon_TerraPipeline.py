@@ -15,7 +15,6 @@ import amplicon_decontamination as ad
 import asv_to_cigar as ac
 
 def main():
-	print("Watermark 5")
 	"""
 	Implementation of the amplicon decontamination pipeline for use and 
 	distribution in TERRA v=1.0

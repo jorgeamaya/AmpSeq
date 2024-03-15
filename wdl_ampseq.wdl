@@ -70,6 +70,18 @@ workflow ampseq {
 			verbose = verbose,
 			adapter = adapter
 	}
+
+	output {
+		File? ASVBimeras_f = ampseq_pipeline.ASVBimeras
+		File? CIGARVariants_Bfilter_f = ampseq_pipeline.CIGARVariants_Bfilter
+		File? ASV_to_CIGAR_f = ampseq_pipeline.ASV_to_CIGAR
+		File? seqtab_f = ampseq_pipeline.seqtab
+		File? ASVTable_f = ampseq_pipeline.ASVTable
+		File? ASVSeqs_f = ampseq_pipeline.ASVSeqs
+		File? missing_files_f = ampseq_pipeline.missing_files
+		File? decontamination_sample_cards_f = ampseq_pipeline.decontamination_sample_cards
+		File? decontamination_report_f = ampseq_pipeline.decontamination_report
+	}
 }
 
 task ampseq_pipeline {
