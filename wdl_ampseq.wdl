@@ -160,7 +160,7 @@ task ampseq_pipeline {
 		echo "Sequencing run with inline barcodes. Performing analysis of combinatorial indices followed by denoising"
 		find . -type f
 		python /Code/Amplicon_TerraPipeline.py --config ~{config_json} --terra --meta --adaptor_removal --contamination --separate_reads --primer_removal --dada2 --postproc_dada2 --asv_to_cigar
-		Rscript /Code/render_report.R -d "/Report/Merge/" -o "/Report/" -p "barcodes_matches.csv" -m 1000 -c 0.5 -mf "/Results/missing_files.tsv"
+		Rscript /Code/render_report.R -d /cromwell_root/Report/Merge/ -o /cromwell_root/Report/ -p /cromwell_root/barcodes_matches.csv -m 1000 -c 0.5 -mf /cromwell_root/Results/missing_files.tsv
 		tar -csvf Report_Cards.tar.gz Report
 		find . -type f
 	else
