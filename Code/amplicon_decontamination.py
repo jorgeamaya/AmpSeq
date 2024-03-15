@@ -451,68 +451,131 @@ def filter_fastq_by_read_names(input_fastq_1, input_fastq_2, tsv_file, output_fa
 	filter_fastq(input_fastq_2, output_fastq_2, read_names)
 
 def hamming_distance(str1, str2):
+	"""
+	Computes the Hamming distance between two strings of equal length.
+
+	Parameters:
+	str1 (str): First input string.
+	str2 (str): Second input string.
+
+	Returns:
+	int: Hamming distance between the two input strings.
+
+	Raises:
+	ValueError: If the input strings have different lengths.
+	"""
 	if len(str1) != len(str2):
 		raise ValueError("Input strings must have the same length")
 
-	distance = 0
-	for i in range(len(str1)):
-		if str1[i] != str2[i]:
-			distance += 1
-	return distance
+	return sum(ch1 != ch2 for ch1, ch2 in zip(str1, str2))
 
 #SEPARATE READS FOR CONTATENATION OR MERGING
 #Find the adapter
 def find_common_subsequence(fasta_file):
-    #The adapter must be the common subsequence to all sequences in the primer file
-    sequences = [str(record.seq) for record in SeqIO.parse(fasta_file, "fasta")]
-    shortest_sequence = min(sequences, key=len)
-    starting_length = len(shortest_sequence)
-    # Iterate over other sequences to find common subsequence
-    for sequence in sequences:
-        common_subsequence = []
-        for char_shortest, char_sequence in zip(shortest_sequence, sequence):
-            if char_shortest == char_sequence:
-                common_subsequence.append(char_shortest)
-            else:
-                break
-        shortest_sequence = "".join(common_subsequence)
+	"""
+	Finds the common subsequence among sequences in a FASTA file.
 
-    if len(shortest_sequence) == starting_length:
-        sys.exit('All sequences in the primer file are the same and the adapter cannot be determined.\nCheck your primer file or manually provide the adapter sequence.')
-    else:
-        return shortest_sequence
+	Parameters:
+	fasta_file (str): Path to the input FASTA file.
+
+	Returns:
+	str: Common subsequence shared by all sequences.
+
+	Raises:
+	ValueError: If all sequences in the FASTA file are identical.
+	"""
+	#The adapter must be the common subsequence to all sequences in the primer file
+	sequences = [str(record.seq) for record in SeqIO.parse(fasta_file, "fasta")]
+	shortest_sequence = min(sequences, key=len)
+	starting_length = len(shortest_sequence)
+	# Iterate over other sequences to find common subsequence
+	for sequence in sequences:
+		common_subsequence = []
+		for char_shortest, char_sequence in zip(shortest_sequence, sequence):
+			if char_shortest == char_sequence:
+				common_subsequence.append(char_shortest)
+			else:
+				break
+		shortest_sequence = "".join(common_subsequence)
+
+	if len(shortest_sequence) == starting_length:
+		sys.exit('All sequences in the primer file are the same and the adapter cannot be determined.\nCheck your primer file or manually provide the adapter sequence.')
+	else:
+		return shortest_sequence
 
 def find_longest_sequence_length(fastq_file):
-    max_length = 0
-    with gzip.open(fastq_file, 'rt') as file:
-        lines = file.readlines()
-        for i in range(1, len(lines), 4):
-            sequence_length = len(lines[i].strip())
-            if sequence_length > max_length:
-                max_length = sequence_length
-    return max_length
+	"""
+	Calculates the Hamming distance between two strings of equal length.
+
+	Parameters:
+	- str1 (str): The first input string.
+	- str2 (str): The second input string.
+
+	Returns:
+	- distance (int): The Hamming distance between the input strings,
+	which is the number of positions at which the corresponding symbols
+	are different.
+
+	Raises:
+	- ValueError: If the input strings have different lengths.
+	"""
+	max_length = 0
+	with gzip.open(fastq_file, 'rt') as file:
+		lines = file.readlines()
+		for i in range(1, len(lines), 4):
+			sequence_length = len(lines[i].strip())
+			if sequence_length > max_length:
+				max_length = sequence_length
+	return max_length
 
 def remove_adapter(fasta_file, sequence_to_remove, output_file):
-    with open(fasta_file, 'r') as input_file, open(output_file, 'w') as output_file:
-        current_sequence = ''
-        current_header = ''
+	"""
+	Removes a specific sequence adapter from each sequence in a FASTA file and writes the modified sequences to an output file.
 
-        for line in input_file:
-            if line.startswith('>'):
-                if current_sequence:
-                    modified_sequence = current_sequence.replace(sequence_to_remove, '')
-                    output_file.write(f"{current_header}\n{modified_sequence}\n")
+	Parameters:
+	fasta_file (str): Path to the input FASTA file.
+	sequence_to_remove (str): Adapter sequence to remove from each sequence.
+	output_file (str): Path to the output file where modified sequences will be written.
+	"""
+	with open(fasta_file, 'r') as input_file, open(output_file, 'w') as output_file:
+		current_sequence = ''
+		current_header = ''
 
-                current_header = line.strip()
-                current_sequence = ''
-            else:
-                current_sequence += line.strip()
+		for line in input_file:
+			if line.startswith('>'):
+				if current_sequence:
+					modified_sequence = current_sequence.replace(sequence_to_remove, '')
+					output_file.write(f"{current_header}\n{modified_sequence}\n")
 
-        if current_sequence:
-            modified_sequence = current_sequence.replace(sequence_to_remove, '')
-            output_file.write(f"{current_header}\n{modified_sequence}\n")
+				current_header = line.strip()
+				current_sequence = ''
+			else:
+				current_sequence += line.strip()
+
+		if current_sequence:
+			modified_sequence = current_sequence.replace(sequence_to_remove, '')
+			output_file.write(f"{current_header}\n{modified_sequence}\n")
 
 def demultiplex_per_size(sampleid, fileF, fileR, pr1, pr2, res_dir, subdir, read_size_fw, read_size_rv, asv_lengths, mismatches = 2):
+	"""
+	Demultiplexes paired-end FASTQ files based on primer sequences and read sizes.
+
+	Parameters:
+	sampleid (str): Sample identifier.
+	fileF (str): Path to the forward (R1) FASTQ file.
+	fileR (str): Path to the reverse (R2) FASTQ file.
+	pr1 (str): Path to the forward primer FASTA file.
+	pr2 (str): Path to the reverse primer FASTA file.
+	res_dir (str): Directory to save demultiplexed files.
+	subdir (str): Subdirectory within res_dir to save sample files.
+	read_size_fw (int): Expected read size for forward reads.
+	read_size_rv (int): Expected read size for reverse reads.
+	asv_lengths (list): List of expected lengths for ASV sequences.
+	mismatches (int): Number of mismatches allowed in primer matching.
+
+	Returns:
+	None
+	"""
 	#Retrieve Primer
 	primer_dict_fw = {}
 	counter = 1
@@ -596,6 +659,15 @@ def demultiplex_per_size(sampleid, fileF, fileR, pr1, pr2, res_dir, subdir, read
 		gzip_file(output_fastq_rv_op, output_fastq_rv_op + ".gz")	
 
 def find_common_subsequences(records):
+	"""
+	Finds common subsequences among sequences with the same identifier in a list of records.
+
+	Parameters:
+	records (list): List of SeqRecord objects.
+
+	Returns:
+	dict: Dictionary mapping sequence identifiers to their common subsequences.
+	"""
 	sequences_by_name = {}
 	for record in records:
 		name = record.id
@@ -615,6 +687,16 @@ def find_common_subsequences(records):
 	return common_subsequences
 
 def write_common_subsequences_to_fasta(common_subsequences, output_file):
+	"""
+	Writes common subsequences to a FASTA file.
+
+	Parameters:
+	common_subsequences (dict): Dictionary mapping sequence identifiers to their common subsequences.
+	output_file (str): Path to the output FASTA file.
+
+	Returns:
+	None
+	"""
 	with open(output_file, 'w') as out_fasta:
 		for name, sequence in common_subsequences.items():
 			out_fasta.write(f'>{name}\n{sequence}\n')
