@@ -247,6 +247,7 @@ lapply(fnRs, qprofile, work_dir)
 # Create paths for filtered fastq
 filtFs <- file.path(work_dir, "filtered", paste0(sample.names, "_filt_R1.fastq.gz"))
 filtRs <- file.path(work_dir, "filtered", paste0(sample.names, "_filt_R2.fastq.gz"))
+
 names(filtFs) <- sample.names
 names(filtRs) <- sample.names
 
@@ -255,13 +256,13 @@ if (filter == TRUE) {
 	print("filtering samples...")
   out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs,
             maxN=0, maxEE=maxEE, trimRight=trimRight, truncQ=truncQ, minLen=minLen,
-            rm.phix=TRUE, compress=TRUE, multithread=TRUE, verbose=TRUE,
+            rm.phix=TRUE, compress=TRUE, multithread=FALSE, verbose=TRUE,
             matchIDs=matchIDs)
 	print("filtering done!")
 } else {
 	print("skipping filter except mandatory removal of N's... ")
 	out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncQ=c(0,0), maxN=0, rm.phix=TRUE,
-            compress=TRUE, multithread=TRUE, verbose=TRUE, matchIDs=matchIDs)
+            compress=TRUE, multithread=FALSE, verbose=TRUE, matchIDs=matchIDs)
 }
 
 # Report and Correct for samples with zero reads after filter

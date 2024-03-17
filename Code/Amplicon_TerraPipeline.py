@@ -103,6 +103,7 @@ def main():
 	
 	#Create metadata files
 	if args.meta:
+		print("Creating meta files")
 		ad.flush_dir(res_dir, "Fq_metadata")
 		ad.create_meta(path_to_fq, res_dir, "Fq_metadata", "rawfilelist.tsv", pattern_fw, pattern_rv)
 
@@ -124,6 +125,7 @@ def main():
 	#Remove adaptors
 	#Most sequences must be adaptor free; just in case, run this step to eliminate any lingering adaptors.
 	if args.adaptor_removal:
+		print("Removing adaptors")
 		ad.flush_dir(res_dir, "AdaptorRem")
 		meta = open(os.path.join(res_dir, "Fq_metadata", "rawfilelist.tsv"), 'r')
 		samples = meta.readlines()
@@ -138,6 +140,7 @@ def main():
 	#Merge forward and reverse reads with bbmerge. Only for reads that overlap and
 	#Process merge report and generate RStudio plots
 	if args.contamination:
+		print("Concatenating reads for contamination detection")
 		ad.flush_dir(res_dir, "Merge")
 		meta = open(os.path.join(res_dir, "AdaptorRem", "adaptorrem_meta.tsv") , 'r')
 		samples = meta.readlines()
@@ -149,6 +152,7 @@ def main():
 		meta = open(os.path.join(res_dir, "Merge", "merge_meta.tsv"), 'r')
 		samples = meta.readlines()
 		
+		print("Extracting fields from bbmerge reports")
 		for sample in samples:
 			slist = sample.split()
 			ad.extract_bbmergefields(slist[0], slist[1], slist[3], path_to_flist, res_dir, rep_dir, "Merge", args.terra)
@@ -176,6 +180,7 @@ def main():
 		ad.flush_dir(res_dir, "Fq_metadata")
 		ad.create_meta(os.path.join(res_dir, "Clean_Data_Repo"), res_dir, "Fq_metadata", "rawfilelist.tsv", pattern_fw, pattern_rv)
 
+		print("Removing adaptors of clean read set")
 		ad.flush_dir(res_dir, "AdaptorRem")
 		meta = open(os.path.join(res_dir, "Fq_metadata", "rawfilelist.tsv"), 'r')
 		samples = meta.readlines()
@@ -188,11 +193,13 @@ def main():
 			pattern_fw="*_val_1.fq.gz", pattern_rv="*_val_2.fq.gz")
 
 	if args.separate_reads:
+		print("Entering demultiplexing algorithm")
 		meta = open(os.path.join(res_dir, "AdaptorRem", "adaptorrem_meta.tsv"), 'r')
 		samples = meta.readlines()
 		ad.flush_dir(res_dir, "Demultiplex_by_Size")
 
 		#Get the reads size
+		print("Getting the read size")
 		lengths_fw = []
 		lengths_rv = []
 		for sample in samples:
@@ -209,22 +216,17 @@ def main():
 		all_equal_rv = len(set(p_rv)) == 1
 		if all_equal_fw and all_equal_rv:
 			print("Are all values in the top 95% percentile of read size equal?", all_equal_fw and all_equal_rv)
-			read_size_fw = sorted(lengths_fw)[-1]
-			read_size_rv = sorted(lengths_rv)[-1]
 			print("The following values will be used as the standard size of the reads in this run:")
-			print("Forward read:", read_size_fw)
-			print("Reverse read:", read_size_rv)
-			print("If these sizes, do not match the expected size of your technology, consider rerurring the pipeline after manually providing the size of your reads")
 		else:
 			print("Are all values in the top 95% percentile of read size equal?", all_equal_fw and all_equal_rv)
-			print("Largest values found for the forward and reverse read will be used.")
-			read_size_fw = sorted(lengths_fw)[-1]
-			read_size_rv = sorted(lengths_rv)[-1]
-			print("These values are:")
-			print("Forward read:", read_size_fw)
-			print("Reverse read:", read_size_rv)
-			print("If these sizes, do not match the expected size of your technology, consider rerurring the pipeline after manually providing the size of your reads")
+			print("Largest values found for the forward and reverse read will be used. These values are:")
+		read_size_fw = sorted(lengths_fw)[-1]
+		read_size_rv = sorted(lengths_rv)[-1]
+		print("Forward read:", read_size_fw)
+		print("Reverse read:", read_size_rv)
+		print("If these sizes, do not match the expected size of your technology, consider rerurring the pipeline after manually providing the size of your reads")
 		#Get and remove the adapter sequence
+		print("Removing the adapter sequence from the primers")
 		if adapter is None:
 			adapter_fw = ad.find_common_subsequence(pr1)
 			adapter_rv = ad.find_common_subsequence(pr2)
@@ -237,6 +239,7 @@ def main():
 		ad.remove_adapter(pr2, adapter_rv, 'primer_rv_no_adapter.fasta')
 
 		#Get the size of the reference ASVs
+		print("Getting the size of the reference ASV")
 		if os.path.exists("reference_panel_1.fasta"):
 			ref_files = ["reference_panel_1.fasta"]
 			if os.path.exists("reference_panel_2.fasta"):
@@ -258,9 +261,15 @@ def main():
 			for seq_id, length in asv_lengths.items():
 				writer.writerow([seq_id, length])
 
+		print("Demultiplexing reads by size of reads according to their target amplicon")
+		#Make dictionary of wells
+		sample_number = [f"S{i}" for i in range(1, 193)]
+		illumina_well = [f"{char}{num}" for char in list("ABCDEFGH") for num in range(1, 13)]*2
+		sample_dict = dict(zip(sample_number, illumina_well))
+
 		for sample in samples:
 			slist = sample.split()
-			ad.demultiplex_per_size(slist[0], slist[1], slist[2], 'primer_fw_no_adapter.fasta', 'primer_rv_no_adapter.fasta', res_dir, "Demultiplex_by_Size", read_size_fw, read_size_rv, asv_lengths)
+			ad.demultiplex_per_size(slist[0], slist[1], slist[2], 'primer_fw_no_adapter.fasta', 'primer_rv_no_adapter.fasta', res_dir, "Demultiplex_by_Size", read_size_fw, read_size_rv, asv_lengths, args.contamination, sample_dict)
 		
 		#Create Metafile for reads with no overlap
 		ad.create_meta(os.path.join(res_dir, "Demultiplex_by_Size"), res_dir, "Demultiplex_by_Size", "demux_nop_meta.tsv",
@@ -271,6 +280,7 @@ def main():
 	#Remove primers
 	#For a set where all reads have overlap
 	if args.primer_removal:
+		print("Removing primers")
 		#Extract primer for the target without amplicons
 		# Read input fasta file
 		if args.contamination:
@@ -313,6 +323,7 @@ def main():
 
 #	#For a set that mixes reads with and without overlap
 	if args.dada2:
+		print("Running DADA2")
 		#Run DADA2 on op targets
 		ad.flush_dir(res_dir, "DADA2_OP", "QProfile")
 		path_to_meta = os.path.join(res_dir, "PrimerRem", "mixed_op_prim_meta.tsv")
@@ -352,7 +363,8 @@ def main():
 		seqtab.to_csv(os.path.join(res_dir, 'seqtab.tsv'), sep = "\t", index=False)
 		bimera.to_csv(os.path.join(res_dir, 'ASVBimeras.txt'), sep = "\t", index=False)
 
-	if args.postproc_dada2:		
+	if args.postproc_dada2:	
+		print("Performing PostProc")	
 		ad.flush_dir(res_dir, "PostProc_DADA2")
 		
 		path_to_seqtab = os.path.join(res_dir, 'seqtab.tsv')
@@ -383,7 +395,8 @@ def main():
 
 	#ASV to CIGAR
 	#Convert ASVs from DADA2 pipeline to pseudo-CIGAR strings.
-	if args.asv_to_cigar:		
+	if args.asv_to_cigar:
+		print("Converting ASVs to CIGARs")
 		ad.flush_dir(res_dir, "ASV_to_CIGAR", "alingments")
 
 		path_to_seqtab = os.path.join(res_dir, 'seqtab.tsv')

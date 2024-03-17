@@ -3,7 +3,7 @@ version 1.0
 workflow ampseq {
 	input {	
 		#General commands
-		String path_to_fq 
+		String path_to_fq = "/Users/jar4142/Desktop/Plate_1_Reduced/"
 		String pattern_fw = "*_L001_R1_001.fastq.gz"
 		String pattern_rv = "*_L001_R2_001.fastq.gz"
 

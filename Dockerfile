@@ -43,9 +43,7 @@ RUN apt-get install -y gcc python3-dev python3-setuptools && pip3 uninstall -y c
 
 COPY Code Code
 
-#COPY master.sh master.sh
-#COPY config.json config.json
-#COPY render_report.R render_report.R
-#RUN chmod 755 master.sh
-#COPY ci_report_layouting.Rmd ci_report_layouting.Rmd
-#RUN apt-get install -y vim
+COPY master.sh master.sh
+COPY config.json config.json
+RUN chmod 755 master.sh
+RUN apt-get install -y vim
