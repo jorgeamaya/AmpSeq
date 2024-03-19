@@ -179,6 +179,7 @@ task ampseq_pipeline {
 		echo "Sequencing run without inline barcodes. Skipping analysis of combinatorial indices and performing only denoising"
 		find . -type f
 		python /Code/Amplicon_TerraPipeline.py --config ~{config_json} --terra --meta --adaptor_removal --separate_reads --primer_removal --dada2 --postproc_dada2 --asv_to_cigar
+		find . -type f
 	fi	
 	>>>
 	output {
