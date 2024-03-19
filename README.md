@@ -6,8 +6,6 @@ Quick git push: git add . && git commit -m "Updated wdl" && git push origin main
 
 Quick docker push: 
 #Comment out the last two lines of the file
-RUN apt-get install -y 
-vim COPY master.sh master.sh
 docker build --platform linux/amd64 -t jorgeamaya/mixed_reads_ampseq . && docker push jorgeamaya/mixed_reads_ampseq
 
 ## Development

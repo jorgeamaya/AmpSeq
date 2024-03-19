@@ -614,21 +614,9 @@ def demultiplex_per_size(sampleid, fileF, fileR, pr1, pr2, res_dir, subdir, read
 			for reverse_record in SeqIO.parse(reverse_fasta, 'fasta'):
 				dict_rv[reverse_record.id] = reverse_record.seq
 
-		print("Dictionary FW")
-		print(dict_fw)
-		print("Dictionary RV")
-		print(dict_rv)
-
 		primer_dict_fw = {f"{asv}_{index}": recordseq for asv, recordseq in dict_fw.items() for index in illumina_cols}
 		primer_dict_rv = {f"{asv}_{index}": recordseq for asv, recordseq in dict_rv.items() for index in illumina_rows}
 		asvs = set(dict_fw.keys())
-
-		print("PRIMER DICT FW")
-		print(primer_dict_fw)
-		print("PRIMER DICT RV")
-		print(primer_dict_rv)
-		print("ASVS")
-		print(asvs)
 
 	output_fastq_fw_nop = os.path.join(res_dir, subdir, f"{sampleid}_nop_L001_R1_001.fastq")
 	output_fastq_rv_nop = os.path.join(res_dir, subdir, f"{sampleid}_nop_L001_R2_001.fastq")
